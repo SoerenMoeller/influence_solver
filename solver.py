@@ -5,6 +5,8 @@ from dependency_graph import add_to_graph, setup_graph
 from rules import interval_strength_left, interval_strength_right, interval_join
 from util import is_stronger_as, add_to_tree
 
+import time
+
 
 class Solver:
     _intervals: dict[tuple] = {}
@@ -54,20 +56,25 @@ class Solver:
             self._add_single_interval(interval)
 
     def solve(self, statement: tuple) -> bool:
+        solve_time_start: float = time.time()
         influencing: str = statement[0]
         influenced: str = statement[4]
         interval_x: tuple[float, float] = statement[1]
         interval_y: tuple[float, float] = statement[3]
 
         # build transitive dependencies
-        setup_graph(influencing, influenced)
+        graph_time_start: float = time.time()
+        order: list = setup_graph(influencing, influenced)
+        graph_time: float = time.time() - graph_time_start
 
         if not (influencing, influenced) in self._intervals:
             self._intervals[(influencing, influenced)] = (IntervalTree(), IntervalTree())
         model: tuple = self._intervals[(influencing, influenced)]
 
+        transitive_time_start: float = time.time()
         # TODO: build transitives
         # TODO: do we need ALL sub intervals?
+        transitive_time: float = time.time() - transitive_time_start
 
         # get all overlapping on x
         overlaps_x: set[Interval] = model[0][interval_x[0]:interval_x[1]]
@@ -80,7 +87,7 @@ class Solver:
         # check if solvable from one of the statements in the model
         if self.rule_fact(statement):
             print("solved instantly")
-            #return True
+            # return True
 
         # propagate now to create the strongest possible intervals (interval and quality wise)
         # TODO: is this needed? - no
@@ -144,7 +151,24 @@ class Solver:
                 offset = 1
                 i += 1
 
-        return self.rule_fact(statement)
+        result: bool = self.rule_fact(statement)
+        solve_time: float = time.time() - solve_time_start
+
+        if self._verbose >= 1:
+            total: str = f"Total solving time:          {solve_time}s"
+            dependency: str = f"Dependency graph setup:      {graph_time}s"
+            building: str = f"Building transitives:        {transitive_time}s"
+            max_length: int = max(len(total), len(dependency), len(building))
+
+            print("\n" + "=" * max_length)
+            print(total)
+            print(dependency)
+            print(building)
+            print("=" * max_length + "\n")
+
+            print("solved" if result else "not solvable")
+
+        return result
 
     def rule_fact(self, statement) -> bool:
         influencing: str = statement[0]
