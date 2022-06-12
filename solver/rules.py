@@ -1,7 +1,7 @@
 from typing import Union
 from intervaltree.intervaltree import Interval
-from util import quality_add
-from constants import *
+from .util import quality_add
+from .constants import *
 
 
 def interval_join(interval_a: Interval, interval_b: Interval) -> Union[Interval, None]:

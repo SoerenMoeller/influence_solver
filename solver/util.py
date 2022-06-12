@@ -1,6 +1,6 @@
 from intervaltree.interval import Interval
 from intervaltree.intervaltree import IntervalTree
-from constants import *
+from .constants import *
 
 
 def quality_add(quality_a: str, quality_b: str) -> str:

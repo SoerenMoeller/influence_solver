@@ -1,10 +1,7 @@
 import math
 
-from constants import *
-from intervaltree.interval import Interval
-from intervaltree.intervaltree import IntervalTree
-from solver import Solver
-from math import inf
+from solver.constants import *
+from solver.solver import Solver
 
 
 def main():

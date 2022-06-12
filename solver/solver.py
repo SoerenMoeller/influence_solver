@@ -1,9 +1,9 @@
 from intervaltree.intervaltree import IntervalTree
 from intervaltree.interval import Interval
 
-from dependency_graph import add_to_graph, setup_graph
-from rules import interval_strength_left, interval_strength_right, interval_join
-from util import is_stronger_as, add_to_tree
+from .dependency_graph import add_to_graph, setup_graph
+from .rules import interval_strength_left, interval_strength_right, interval_join
+from .util import is_stronger_as, add_to_tree
 
 import time
 
