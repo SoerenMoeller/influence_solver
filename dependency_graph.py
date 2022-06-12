@@ -1,58 +1,94 @@
-from itertools import chain
+dependency_graph: dict[str, set[str]] = {}
 
 
-def build_graph(dependencies: set[tuple], goal: tuple) -> dict[str, set[str]]:
-    graph: dict[str, set[str]] = {}
+def setup_graph(start: str, end: str) -> list[str]:
+    # find all nodes between start and end
+    vars_on_path: set[str] = dsf(start, end, set(), set())
 
-    # dependency has form (a, b)
-    for dependency in dependencies:
-        a: str = dependency[0]
-        b: str = dependency[1]
+    # build an order on the variables
+    order: list[str] = topological_sort(vars_on_path)
 
-        if a not in graph:
-            graph[a] = set()
-        graph[a].add(b)
-
-        if b not in graph:
-            graph[b] = set()
-        graph[b].add(a)
-
-    # search all paths that lead from the starting variable to the ending variable
-    begin, end = goal
-
-    # use dsf but remove counter edges if path succeeds, break if circle is detected
-    graph = floyd_warshall(graph)
-    dsf(graph, begin, end, [])
-
-    # check all used variables
-    variables: set = set(chain.from_iterable(paths))
-    print(paths)
-
-    return graph
+    return order
 
 
-def floyd_warshall(graph: dict) -> dict:
-    for k in graph.keys():
-        for i in graph.keys():
-            for j in graph.keys():
-                if k in graph[i] and j in graph[k]:
-                    graph[i].add(j)
+def topological_sort(nodes):
+    visited: set = set()
+    stack: list = []
 
-    return graph
+    for node in nodes:
+        if node not in visited:
+            _topological_recursive(node, visited, stack)
 
-
-paths: list[list[str]] = []
+    return stack[::-1]
 
 
-def dsf(graph: dict, current: str, end: str, path: list[str]):
-    global paths
-    if current in path:
-        return
+def _topological_recursive(current, visited, stack):
+    visited.add(current)
 
-    path.append(current)
+    if current in dependency_graph:
+        for node in dependency_graph[current]:
+            if node not in visited:
+                _topological_recursive(node, visited, stack)
+
+    stack.append(current)
+
+
+def dsf(current: str, end: str, stack: set[str], nodes: set) -> set:
+    global dependency_graph
+
+    if current in stack:
+        return nodes
+
+    stack.add(current)
+
     if current == end:
-        paths.append(path)
-        return
+        nodes.update(stack)
+        return nodes
+    if current in dependency_graph:
+        for node in dependency_graph[current]:
+            dsf(node, end, stack.copy(), nodes)
+    return nodes
 
-    for node in graph[current]:
-        dsf(graph, node, end, path[:])
+
+def add_to_graph(dependency: tuple):
+    global dependency_graph
+
+    a: str = dependency[0]
+    b: str = dependency[4]
+
+    if a not in dependency_graph:
+        dependency_graph[a] = set()
+    if b not in dependency_graph[a]:
+        dependency_graph[a].add(b)
+        check_for_cycle(dependency)
+
+
+def floyd_warshall():
+    for k in dependency_graph.keys():
+        for i in dependency_graph.keys():
+            for j in dependency_graph.keys():
+                if k in dependency_graph[i] and j in dependency_graph[k]:
+                    dependency_graph[i].add(j)
+
+
+def check_for_cycle(dependency: tuple):
+    for node in dependency_graph:
+        if dsf_cycle_check(node, set()):
+            raise Exception(f"Couldn't add rule {dependency}, because it destroys the implicit partial order.\n"
+                            f"This can be fixed by checking the dependency graph.\n"
+                            f"{dependency_graph}")
+
+
+def dsf_cycle_check(current: str, stack: set[str]):
+    global dependency_graph
+
+    if current in stack:
+        return True
+
+    stack.add(current)
+
+    if current in dependency_graph:
+        for node in dependency_graph[current]:
+            if dsf_cycle_check(node, stack.copy()):
+                return True
+    return False

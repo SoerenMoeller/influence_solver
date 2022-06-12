@@ -1,13 +1,15 @@
-from intervaltree import IntervalTree, Interval
+from intervaltree.intervaltree import IntervalTree
+from intervaltree.interval import Interval
 
-from dependency_graph import build_graph
+from dependency_graph import add_to_graph, setup_graph
 from rules import interval_strength_left, interval_strength_right, interval_join
-from util import is_stronger_as, turn_interval, add_to_tree
+from util import is_stronger_as, add_to_tree
 
 
 class Solver:
     _intervals: dict[tuple] = {}
-    _verbose: bool = True
+    _verbose: int = 2
+    _dependency_graph: dict[str, set[str]] = {}
 
     def __init__(self, intervals=None):
         if intervals is None:
@@ -30,6 +32,9 @@ class Solver:
     def _add_single_interval(self, interval: tuple):
         influencing: str = interval[0]
         influenced: str = interval[4]
+
+        add_to_graph(interval)
+
         quality: str = interval[2]
         interval_x: tuple[float, float] = interval[1]
         interval_y: tuple[float, float] = interval[3]
@@ -41,7 +46,7 @@ class Solver:
             self._intervals[selector] = (tree_x, tree_y)
 
         model: tuple = self._intervals[selector]
-        interval: Interval = Interval(interval_x[0], interval_x[1], (quality, interval_y))
+        interval: Interval = Interval(interval_x[0], interval_x[1], quality, interval_y[0], interval_y[1])
         add_to_tree(model, interval, self._verbose)
 
     def _add_multiple_intervals(self, intervals: list[tuple]):
@@ -51,10 +56,11 @@ class Solver:
     def solve(self, statement: tuple) -> bool:
         influencing: str = statement[0]
         influenced: str = statement[4]
-        build_graph(set(self._intervals.keys()), (influencing, influenced))
-
         interval_x: tuple[float, float] = statement[1]
         interval_y: tuple[float, float] = statement[3]
+
+        # build transitive dependencies
+        setup_graph(influencing, influenced)
 
         if not (influencing, influenced) in self._intervals:
             self._intervals[(influencing, influenced)] = (IntervalTree(), IntervalTree())
@@ -65,7 +71,7 @@ class Solver:
 
         # get all overlapping on x
         overlaps_x: set[Interval] = model[0][interval_x[0]:interval_x[1]]
-        overlaps_y: set[Interval] = {turn_interval(elem) for elem in model[1][interval_y[0]:interval_y[1]]}
+        overlaps_y: set[Interval] = {elem.turn_interval() for elem in model[1][interval_y[0]:interval_y[1]]}
 
         # not solvable if the condition is not met
         if not overlaps_x.issubset(overlaps_y):
@@ -106,7 +112,7 @@ class Solver:
 
         # propagate stronger intervals from right to left
         overlaps_x: set[Interval] = model[0][interval_x[0]:interval_x[1]]
-        overlaps_y: set[Interval] = {turn_interval(elem) for elem in model[1][interval_y[0]:interval_y[1]]}
+        overlaps_y: set[Interval] = {elem.turn_interval() for elem in model[1][interval_y[0]:interval_y[1]]}
         sorted_tube: list[Interval] = sorted(sorted(overlaps_y), key=lambda x: x.end)[::-1]
         all_indices: set[int] = {sorted_tube.index(elem) for elem in overlaps_x}
         max_index = max(all_indices) if len(all_indices) > 0 else -1
@@ -158,7 +164,6 @@ class Solver:
 
             if x_start >= interval_x[0] and x_end <= interval_x[1] and is_stronger_as(quality_sub, quality):
                 return True
-            # else TODO: strengthen the qualities (enough once in the end?)
         return False
 
     def __str__(self):

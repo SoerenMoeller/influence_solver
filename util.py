@@ -1,4 +1,5 @@
-from intervaltree import Interval, IntervalTree
+from intervaltree.interval import Interval
+from intervaltree.intervaltree import IntervalTree
 from constants import *
 
 
@@ -19,25 +20,6 @@ def is_stronger_as(quality_a: str, quality_b: str) -> bool:
         assert False, "error"
 
 
-def turn_interval(interval: Interval) -> Interval:
-    # returns interval where borders in data field and begin/end are swapped
-    # needed since x and y borders might be switched
-    data: tuple = interval.data
-    return Interval(data[1][0], data[1][1], (data[0], (interval.begin, interval.end)))
-
-
-def get_quality(interval: Interval) -> str:
-    return interval.data[0]
-
-
-def get_y_begin(interval: Interval) -> float:
-    return interval.data[1][0]
-
-
-def get_y_end(interval: Interval) -> float:
-    return interval.data[1][1]
-
-
 def add_to_tree(model: tuple[IntervalTree, IntervalTree], statement: Interval, v=False) -> bool:
     x_tree: IntervalTree = model[0]
     if statement in x_tree:
@@ -49,27 +31,27 @@ def add_to_tree(model: tuple[IntervalTree, IntervalTree], statement: Interval, v
 
     # if new statement envelops interval with less width and more height and weaker quality, we can remove the old one
     for interval in enveloping:
-        if is_stronger_as(get_quality(statement), get_quality(interval)) and \
-                get_y_begin(statement) >= get_y_begin(interval) and get_y_end(statement) <= get_y_end(interval):
+        if is_stronger_as(statement.quality, interval.quality) and \
+                statement.begin_other >= interval.begin_other and statement.end_other <= interval.end_other:
             # remove old interval (not needed anymore)
             model[0].remove(interval)
-            model[1].remove(turn_interval(interval))
+            model[1].remove(interval.turn_interval())
 
             model[0].add(statement)
-            model[1].add(turn_interval(statement))
+            model[1].add(statement.turn_interval())
 
-            if v:
+            if v >= 2:
                 print(f"=== removed interval -{interval}- for stronger interval -{statement}- ===")
 
             return True
 
     for interval in enveloped_by:
-        if is_stronger_as(get_quality(interval), get_quality(statement)) and \
-                get_y_begin(interval) >= get_y_begin(statement) and get_y_end(interval) <= get_y_end(statement):
-            if v:
+        if is_stronger_as(interval.quality, statement.quality) and \
+                interval.begin_other >= statement.begin_other and interval.end_other <= statement.end_other:
+            if v >= 2:
                 print(f"=== did not include interval -{statement}- because of stronger interval -{interval}- ===")
             return False
 
     model[0].add(statement)
-    model[1].add(turn_interval(statement))
+    model[1].add(statement.turn_interval())
     return True
