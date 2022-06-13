@@ -1,5 +1,5 @@
 from typing import Union
-from intervaltree.intervaltree import Interval
+from intervaltree_custom.intervaltree import Interval
 from .util import quality_add, min_quality
 from .constants import *
 

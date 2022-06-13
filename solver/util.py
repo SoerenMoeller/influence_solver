@@ -1,5 +1,5 @@
-from intervaltree.interval import Interval
-from intervaltree.intervaltree import IntervalTree
+from intervaltree_custom.interval import Interval
+from intervaltree_custom.intervaltree import IntervalTree
 from .constants import *
 
 

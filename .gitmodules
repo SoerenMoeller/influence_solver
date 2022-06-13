@@ -1,3 +1,6 @@
 [submodule "intervaltree"]
 	path = intervaltree
 	url = https://github.com/SoerenMoeller/intervaltree.git
+[submodule "intervaltree_custom"]
+	path = intervaltree_custom
+	url = https://github.com/SoerenMoeller/intervaltree_custom.git

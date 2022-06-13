@@ -1,5 +1,5 @@
-from intervaltree.intervaltree import IntervalTree
-from intervaltree.interval import Interval
+from intervaltree_custom.intervaltree import IntervalTree
+from intervaltree_custom.interval import Interval
 
 from .dependency_graph import add_to_graph, setup_graph, get_dependency_graph
 from .rules import interval_strength_left, interval_strength_right, interval_join, interval_strength
