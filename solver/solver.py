@@ -1,8 +1,8 @@
 from intervaltree.intervaltree import IntervalTree
 from intervaltree.interval import Interval
 
-from .dependency_graph import add_to_graph, setup_graph
-from .rules import interval_strength_left, interval_strength_right, interval_join
+from .dependency_graph import add_to_graph, setup_graph, get_dependency_graph
+from .rules import interval_strength_left, interval_strength_right, interval_join, interval_strength
 from .util import is_stronger_as, add_to_tree
 
 import time
@@ -72,6 +72,7 @@ class Solver:
         model: tuple = self._intervals[(influencing, influenced)]
 
         transitive_time_start: float = time.time()
+        self._build_transitive_cover(order)
         # TODO: build transitives
         # TODO: do we need ALL sub intervals?
         transitive_time: float = time.time() - transitive_time_start
@@ -85,7 +86,7 @@ class Solver:
             return False
 
         # check if solvable from one of the statements in the model
-        if self.rule_fact(statement):
+        if self._rule_fact(statement):
             print("solved instantly")
             # return True
 
@@ -151,9 +152,14 @@ class Solver:
                 offset = 1
                 i += 1
 
-        result: bool = self.rule_fact(statement)
+        result: bool = self._rule_fact(statement)
         solve_time: float = time.time() - solve_time_start
 
+        self._print_result(solve_time, graph_time, transitive_time, result)
+
+        return result
+
+    def _print_result(self, solve_time: float, graph_time: float, transitive_time: float, result: bool):
         if self._verbose >= 1:
             total: str = f"Total solving time:          {solve_time}s"
             dependency: str = f"Dependency graph setup:      {graph_time}s"
@@ -168,9 +174,57 @@ class Solver:
 
             print("solved" if result else "not solvable")
 
-        return result
+    def _build_transitive_cover(self, order: list[str]):
+        graph: dict = get_dependency_graph()
 
-    def rule_fact(self, statement) -> bool:
+        for i in order:
+            for j in order:
+                for k in order:
+                    if not (i in graph and j in graph[i]) or not (j in graph and k in graph[j]):
+                        continue
+
+                    self._strengthen_interval_height(i, j, interval_strength)
+                    self._strengthen_interval_height(i, j, interval_strength_left)
+                    self._strengthen_interval_height(i, j, interval_strength_right)
+                    self._strengthen_interval_width(j, k)
+                    self._build_transitives(i, j, k)
+                    return
+
+    def _build_transitives(self, a: str, b: str, c: str):
+        pass
+
+    def _strengthen_interval_height(self, influencing: str, influenced: str, strengthening_method, rev: bool = False):
+        # iterate over given statements of influences with the goal of strengthening the qualities
+        model: tuple = self._intervals[(influencing, influenced)]
+        all_intervals: list[Interval]
+        if rev:
+            all_intervals = sorted(sorted(model[0].all_intervals), key=lambda x: x.end, reverse=True)
+        else:
+            all_intervals = sorted(model[0].all_intervals)
+
+        i: int = 0
+        offset: int = 1
+        while i < len(all_intervals):
+            if not i + offset < len(all_intervals):
+                i += 1
+                offset = 1
+                continue
+
+            first: int = i + offset if rev else i
+            second: int = i if rev else i + offset
+            result = strengthening_method(all_intervals[first], all_intervals[second])
+            added: bool = add_to_tree(model, result)
+            if added:
+                offset += 1
+            else:
+                i += 1
+                offset = 1
+
+    def _strengthen_interval_width(self, influencing: str, influenced: str):
+        # iterate over given statements of influences with the goal of maximizing the width
+        pass
+
+    def _rule_fact(self, statement) -> bool:
         influencing: str = statement[0]
         influenced: str = statement[4]
         quality: str = statement[2]
@@ -181,10 +235,9 @@ class Solver:
         sub_y: set[Interval] = model[1].envelop(interval_y[0], interval_y[1])
 
         for sub_interval in sub_y:
-            data: tuple = sub_interval.data
-            quality_sub: str = data[0]
-            x_start: float = data[1][0]
-            x_end: float = data[1][1]
+            quality_sub: str = sub_interval.quality
+            x_start: float = sub_interval.begin
+            x_end: float = sub_interval.begin_other
 
             if x_start >= interval_x[0] and x_end <= interval_x[1] and is_stronger_as(quality_sub, quality):
                 return True

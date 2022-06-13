@@ -3,6 +3,24 @@ from intervaltree.intervaltree import IntervalTree
 from .constants import *
 
 
+def min_quality(quality_a: str, quality_b: str) -> str:
+    if quality_a == quality_b:
+        return quality_a
+    elif quality_a == QUALITY_ARB and quality_b != QUALITY_ARB:
+        return quality_b
+    elif quality_b == QUALITY_ARB and quality_a != QUALITY_ARB:
+        return quality_a
+    elif quality_a == QUALITY_MONO and quality_b == QUALITY_ANTI or \
+            quality_b == QUALITY_MONO and quality_a == QUALITY_ANTI:
+        return QUALITY_CONS
+    elif (quality_a == QUALITY_ANTI or quality_a == QUALITY_ANTI) and quality_b == QUALITY_CONS:
+        return quality_a
+    elif (quality_b == QUALITY_ANTI or quality_b == QUALITY_ANTI) and quality_a == QUALITY_CONS:
+        return quality_b
+    else:
+        assert False, f"Tried to minimize unknown quality pair: {quality_a}, {quality_b}"
+
+
 def quality_add(quality_a: str, quality_b: str) -> str:
     return ADD[quality_a][quality_b]
 
@@ -17,10 +35,13 @@ def is_stronger_as(quality_a: str, quality_b: str) -> bool:
     elif quality_a == QUALITY_ANTI:
         return True if quality_b in [QUALITY_ANTI, QUALITY_ARB] else False
     else:
-        assert False, "error"
+        assert False, f"Tried to strengthen unknown quality pair: {quality_a}, {quality_b}"
 
 
-def add_to_tree(model: tuple[IntervalTree, IntervalTree], statement: Interval, v=False) -> bool:
+def add_to_tree(model: tuple[IntervalTree, IntervalTree], statement: Interval, v=0) -> bool:
+    if statement is None:
+        return False
+
     x_tree: IntervalTree = model[0]
     if statement in x_tree:
         return False

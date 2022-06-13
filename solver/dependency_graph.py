@@ -1,12 +1,19 @@
 dependency_graph: dict[str, set[str]] = {}
 
 
+def get_dependency_graph():
+    return dependency_graph
+
+
 def setup_graph(start: str, end: str) -> list[str]:
     # find all nodes between start and end
     vars_on_path: set[str] = dsf(start, end, set(), set())
 
     # build an order on the variables
     order: list[str] = topological_sort(vars_on_path)
+
+    # build transitives
+    floyd_warshall()
 
     return order
 

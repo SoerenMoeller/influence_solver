@@ -1,6 +1,6 @@
 from typing import Union
 from intervaltree.intervaltree import Interval
-from .util import quality_add
+from .util import quality_add, min_quality
 from .constants import *
 
 
@@ -65,5 +65,6 @@ def interval_strength(interval_a: Interval, interval_b: Interval) -> Union[Inter
     x_end: float = min(interval_a.end, interval_b.end)
     y_start: float = max(interval_a.begin_other, interval_b.begin_other)
     y_end: float = min(interval_a.end_other, interval_b.end_other)
+    quality: str = min_quality(interval_a.quality, interval_b.quality)
 
-    return Interval(x_start, x_end, interval_a.quality, y_start, y_end)
+    return Interval(x_start, x_end, quality, y_start, y_end)
