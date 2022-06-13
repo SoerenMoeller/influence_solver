@@ -7,9 +7,9 @@ from intervaltree_custom.interval import Interval
 from solver.util import fetch_image_name
 
 
-def plot_statements(intervals: dict, influences: list[tuple[str, str]]):
+def plot_statements(intervals: dict, influences: list[tuple[str, str]], statement: tuple = None):
     # setup amount of plots
-    figure, axis = plt.subplots(max(len(influences), 2)) # when using subplots, at least 2 are needed
+    figure, axis = plt.subplots(max(len(influences), 2))  # when using subplots, at least 2 are needed
 
     # setup distance of the plots
     plt.subplots_adjust(left=0.1,
@@ -35,25 +35,39 @@ def plot_statements(intervals: dict, influences: list[tuple[str, str]]):
         axis[index].set(xlabel=influence[0], ylabel=influence[1])
 
         # plot the statements
-        for statement in statements:
-            bottom: float = statement.begin_other
-            left: float = statement.begin
-            width: float = statement.end - statement.begin
-            height: float = statement.end_other - statement.begin_other
+        for interval in statements:
+            plot_statement(axis[index], interval)
 
-            rect = mpatches.Rectangle((left, bottom), width, height,
-                                      fill=False,
-                                      alpha=1,
-                                      color="black",
-                                      linewidth=0.5)
-            axis[index].add_patch(rect)
+        # plot optional statement
+        if statement is not None and (statement[0], statement[4]) == influence:
+            quality: str = statement[2]
+            interval_x: tuple[float, float] = statement[1]
+            interval_y: tuple[float, float] = statement[3]
 
-            # plot the image of the symbol
-            position_x: float = left + width / 2
-            position_y: float = bottom + height / 2
-            arr_lena = mpimg.imread(f"./plotter/{fetch_image_name(statement.quality)}")
-            image_box = OffsetImage(arr_lena, zoom=0.2)
-            ab = AnnotationBbox(image_box, (position_x, position_y), frameon=False, pad=0)
-            axis[index].add_artist(ab)
+            statement_interval: Interval = Interval(interval_x[0], interval_x[1], quality,
+                                                    interval_y[0], interval_y[1])
+            plot_statement(axis[index], statement_interval, "red")
 
     plt.show()
+
+
+def plot_statement(ax, statement: Interval, color="black"):
+    bottom: float = statement.begin_other
+    left: float = statement.begin
+    width: float = statement.end - statement.begin
+    height: float = statement.end_other - statement.begin_other
+
+    rect = mpatches.Rectangle((left, bottom), width, height,
+                              fill=False,
+                              alpha=1,
+                              color=color,
+                              linewidth=0.5)
+    ax.add_patch(rect)
+
+    # plot the image of the symbol
+    position_x: float = left + width / 2
+    position_y: float = bottom + height / 2
+    arr_lena = mpimg.imread(f"./plotter/{fetch_image_name(statement.quality, color)}")
+    image_box = OffsetImage(arr_lena, zoom=0.2)
+    ab = AnnotationBbox(image_box, (position_x, position_y), frameon=False, pad=0)
+    ax.add_artist(ab)

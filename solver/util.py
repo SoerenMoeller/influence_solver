@@ -3,15 +3,15 @@ from intervaltree_custom.intervaltree import IntervalTree
 from .constants import *
 
 
-def fetch_image_name(quality: str):
+def fetch_image_name(quality: str, color: str):
     if quality == QUALITY_ANTI:
-        return "anti.png"
+        return f"anti_{color}.png"
     elif quality == QUALITY_ARB:
-        return "arbitrary.png"
+        return f"arbitrary_{color}.png"
     elif quality == QUALITY_MONO:
-        return "mono.png"
+        return f"mono_{color}.png"
     elif quality == QUALITY_CONS:
-        return "const.png"
+        return f"const_{color}.png"
     else:
         assert False, f"Checked for unknown quality image name: {quality}"
 

@@ -66,7 +66,7 @@ def main():
         ("a", (8.6, 10.7), QUALITY_MONO, (1.6, 2.2), "b"),
         ("a", (10, 11), QUALITY_MONO, (1.3, 1.9), "b")
     ]
-    statement_0: tuple = ("a", (5, 7), QUALITY_MONO, (1.1, 1.8), "b")
+    statement_0: tuple = ("a", (5, 7), QUALITY_MONO, (1.7, 1.8), "b")
 
     model_1: set[tuple] = {
         ("a", (0, 5), QUALITY_MONO, (2, 4), "b"),

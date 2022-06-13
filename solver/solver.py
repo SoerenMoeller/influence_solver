@@ -65,7 +65,7 @@ class Solver:
         interval_x: tuple[float, float] = statement[1]
         interval_y: tuple[float, float] = statement[3]
         if self._verbose >= 3:
-            plot_statements(self._intervals, list(self._intervals.keys()))
+            plot_statements(self._intervals, list(self._intervals.keys()), statement)
 
         # build transitive dependencies
         graph_time_start: float = time.time()
@@ -163,7 +163,7 @@ class Solver:
         solve_time: float = time.time() - solve_time_start
 
         if self._verbose >= 3:
-            plot_statements(self._intervals, list(self._intervals.keys()))
+            plot_statements(self._intervals, list(self._intervals.keys()), statement)
 
         self._print_result(solve_time, graph_time, transitive_time, result)
 
