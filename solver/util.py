@@ -25,6 +25,10 @@ def quality_add(quality_a: str, quality_b: str) -> str:
     return ADD[quality_a][quality_b]
 
 
+def quality_times(quality_a: str, quality_b: str) -> str:
+    return TIMES[quality_a][quality_b]
+
+
 def is_stronger_as(quality_a: str, quality_b: str) -> bool:
     if quality_b == QUALITY_ARB or quality_a == QUALITY_CONS:
         return True

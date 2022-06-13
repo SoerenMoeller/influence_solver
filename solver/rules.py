@@ -1,6 +1,6 @@
 from typing import Union
 from intervaltree_custom.intervaltree import Interval
-from .util import quality_add, min_quality
+from .util import quality_add, min_quality, quality_times
 from .constants import *
 
 
@@ -68,3 +68,11 @@ def interval_strength(interval_a: Interval, interval_b: Interval) -> Union[Inter
     quality: str = min_quality(interval_a.quality, interval_b.quality)
 
     return Interval(x_start, x_end, quality, y_start, y_end)
+
+
+def transitivity(interval_a: Interval, interval_b: Interval) -> Union[Interval, None]:
+    if not (interval_a.begin_other <= interval_b.begin and interval_a.end_other <= interval_b.end):
+        return None
+
+    quality: str = quality_times(interval_a.quality, interval_b.quality)
+    return Interval(interval_a.begin, interval_a.end, quality, interval_b.begin_other, interval_b.end_other)

@@ -84,8 +84,24 @@ def main():
     }
     statement_2: tuple = ("a", (0, 1), QUALITY_MONO, (0, 1), "e")
 
-    solver: Solver = Solver(model_2)
-    result: bool = solver.solve(statement_2)
+    model_3: set[tuple] = {
+        ("a", (0, 0.5), QUALITY_MONO, (0, 1), "b"),
+        ("a", (0.4, 0.6), QUALITY_MONO, (0.5, 1.8), "b"),
+        ("a", (0.6, 1), QUALITY_MONO, (1, 2.5), "b"),
+        ("a", (0.85, 1.4), QUALITY_MONO, (2.3, 2.7), "b"),
+        ("a", (1.3, 1.7), QUALITY_MONO, (1.9, 2.4), "b"),
+        ("a", (1.7, 2.5), QUALITY_MONO, (1.3, 2), "b"),
+        ("a", (2.4, 3), QUALITY_MONO, (0.5, 1.5), "b"),
+        ("b", (0, 1), QUALITY_MONO, (0, 2), "c"),
+        ("b", (0.4, 2), QUALITY_MONO, (0.4, 1.8), "c"),
+        ("b", (1.2, 2.1), QUALITY_MONO, (0.2, 1.5), "c"),
+        ("b", (1.9, 2.5), QUALITY_MONO, (1.3, 2), "c"),
+        ("b", (2.4, 3), QUALITY_MONO, (1.7, 3), "c")
+    }
+    statement_3: tuple = ("a", (1, 2), QUALITY_MONO, (1, 2), "c")
+
+    solver: Solver = Solver(model_3)
+    result: bool = solver.solve(statement_3)
 
     """ testing forked version
     x = "x"

@@ -1,8 +1,10 @@
+import bisect
+
 from intervaltree_custom.intervaltree import IntervalTree
 from intervaltree_custom.interval import Interval
 
 from .dependency_graph import add_to_graph, setup_graph, get_dependency_graph
-from .rules import interval_strength_left, interval_strength_right, interval_join, interval_strength
+from .rules import interval_strength_left, interval_strength_right, interval_join, interval_strength, transitivity
 from .util import is_stronger_as, add_to_tree
 
 import time
@@ -72,7 +74,9 @@ class Solver:
         model: tuple = self._intervals[(influencing, influenced)]
 
         transitive_time_start: float = time.time()
+        print(self._length())
         self._build_transitive_cover(order)
+        print(self._length())
         # TODO: build transitives
         # TODO: do we need ALL sub intervals?
         transitive_time: float = time.time() - transitive_time_start
@@ -183,24 +187,32 @@ class Solver:
                     if not (i in graph and j in graph[i]) or not (j in graph and k in graph[j]):
                         continue
 
-                    self._strengthen_interval_height(i, j, interval_strength)
-                    self._strengthen_interval_height(i, j, interval_strength_left)
-                    self._strengthen_interval_height(i, j, interval_strength_right)
+                    self._strengthen_interval_height(i, j)
+                    print(self._length())
+                    self._strengthen_interval_height_left(i, j)
+                    print(self._length())
+                    self._strengthen_interval_height_right(i, j)
+                    print(self._length())
                     self._strengthen_interval_width(j, k)
                     self._build_transitives(i, j, k)
                     return
 
     def _build_transitives(self, a: str, b: str, c: str):
-        pass
+        model_ab: tuple = self._intervals[(a, b)]
+        model_bc: tuple = self._intervals[(b, c)]
+        if (a, c) not in self._intervals:
+            self._intervals[(a, c)] = (IntervalTree, IntervalTree)
 
-    def _strengthen_interval_height(self, influencing: str, influenced: str, strengthening_method, rev: bool = False):
-        # iterate over given statements of influences with the goal of strengthening the qualities
+        for interval in model_bc[0]:
+            enveloped: set[Interval] = model_ab[1].envelop(interval.begin, interval.end)
+
+            for enveloped_interval in enveloped:
+                rule: Interval = transitivity(enveloped_interval, interval)
+                add_to_tree(self._intervals[(a, c)], rule, self._verbose)
+
+    def _strengthen_interval_height(self, influencing: str, influenced: str):
         model: tuple = self._intervals[(influencing, influenced)]
-        all_intervals: list[Interval]
-        if rev:
-            all_intervals = sorted(sorted(model[0].all_intervals), key=lambda x: x.end, reverse=True)
-        else:
-            all_intervals = sorted(model[0].all_intervals)
+        all_intervals: list[Interval] = sorted(model[0].all_intervals)
 
         i: int = 0
         offset: int = 1
@@ -210,11 +222,52 @@ class Solver:
                 offset = 1
                 continue
 
-            first: int = i + offset if rev else i
-            second: int = i if rev else i + offset
-            result = strengthening_method(all_intervals[first], all_intervals[second])
-            added: bool = add_to_tree(model, result)
+            result = interval_strength(all_intervals[i], all_intervals[i + offset])
+            added: bool = add_to_tree(model, result, self._verbose)
             if added:
+                index: int = bisect.bisect_left(all_intervals, result)
+                all_intervals = all_intervals[:index] + [result] + all_intervals[index:]
+            else:
+                i += 1
+                offset = 1
+
+    def _strengthen_interval_height_left(self, influencing: str, influenced: str):
+        model: tuple = self._intervals[(influencing, influenced)]
+        all_intervals: list[Interval] = sorted(model[0].all_intervals)
+
+        i: int = 0
+        offset: int = 1
+        while i < len(all_intervals):
+            if not i + offset < len(all_intervals):
+                i += 1
+                offset = 1
+                continue
+
+            result = interval_strength_left(all_intervals[i], all_intervals[i + offset])
+            added: bool = add_to_tree(model, result, self._verbose)
+            if added:
+                all_intervals[i + offset] = result
+                offset += 1
+            else:
+                i += 1
+                offset = 1
+
+    def _strengthen_interval_height_right(self, influencing: str, influenced: str):
+        model: tuple = self._intervals[(influencing, influenced)]
+        all_intervals: list[Interval] = sorted(sorted(model[0].all_intervals), key=lambda x: x.end, reverse=True)
+
+        i: int = 0
+        offset: int = 1
+        while i < len(all_intervals):
+            if not i + offset < len(all_intervals):
+                i += 1
+                offset = 1
+                continue
+
+            result = interval_strength_left(all_intervals[i], all_intervals[i + offset])
+            added: bool = add_to_tree(model, result, self._verbose)
+            if added:
+                all_intervals[i + offset] = result
                 offset += 1
             else:
                 i += 1
@@ -222,7 +275,29 @@ class Solver:
 
     def _strengthen_interval_width(self, influencing: str, influenced: str):
         # iterate over given statements of influences with the goal of maximizing the width
-        pass
+        model: tuple = self._intervals[(influencing, influenced)]
+
+        changed: bool = True
+        while changed:
+            changed = False
+            all_intervals: list[Interval] = sorted(model[0].all_intervals)
+            i: int = 0
+            offset: int = 1
+            while i < len(all_intervals):
+                if not i + offset < len(all_intervals):
+                    i += 1
+                    offset = 1
+                    continue
+
+                result = interval_join(all_intervals[i], all_intervals[i + offset])
+                added: bool = add_to_tree(model, result, self._verbose)
+                if added:
+                    offset += 1
+                    changed = True
+                else:
+                    i += 1
+                    offset = 1
+
 
     def _rule_fact(self, statement) -> bool:
         influencing: str = statement[0]
@@ -242,6 +317,12 @@ class Solver:
             if x_start >= interval_x[0] and x_end <= interval_x[1] and is_stronger_as(quality_sub, quality):
                 return True
         return False
+
+    def _length(self):
+        length: int = 0
+        for model in self._intervals:
+            length += len(self._intervals[model][0].all_intervals)
+        return length
 
     def __str__(self):
         return str(self._intervals)
