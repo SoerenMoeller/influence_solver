@@ -3,6 +3,19 @@ from intervaltree_custom.intervaltree import IntervalTree
 from .constants import *
 
 
+def fetch_image_name(quality: str):
+    if quality == QUALITY_ANTI:
+        return "anti.png"
+    elif quality == QUALITY_ARB:
+        return "arbitrary.png"
+    elif quality == QUALITY_MONO:
+        return "mono.png"
+    elif quality == QUALITY_CONS:
+        return "const.png"
+    else:
+        assert False, f"Checked for unknown quality image name: {quality}"
+
+
 def min_quality(quality_a: str, quality_b: str) -> str:
     if quality_a == quality_b:
         return quality_a

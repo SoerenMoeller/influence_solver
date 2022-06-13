@@ -2,6 +2,7 @@ import bisect
 
 from intervaltree_custom.intervaltree import IntervalTree
 from intervaltree_custom.interval import Interval
+from plotter.plotter import plot_statements
 
 from .dependency_graph import add_to_graph, setup_graph, get_dependency_graph
 from .rules import interval_strength_left, interval_strength_right, interval_join, interval_strength, transitivity
@@ -12,7 +13,7 @@ import time
 
 class Solver:
     _intervals: dict[tuple] = {}
-    _verbose: int = 2
+    _verbose: int = 3
     _dependency_graph: dict[str, set[str]] = {}
 
     def __init__(self, intervals=None):
@@ -63,6 +64,8 @@ class Solver:
         influenced: str = statement[4]
         interval_x: tuple[float, float] = statement[1]
         interval_y: tuple[float, float] = statement[3]
+        if self._verbose >= 3:
+            plot_statements(self._intervals, list(self._intervals.keys()))
 
         # build transitive dependencies
         graph_time_start: float = time.time()
@@ -158,6 +161,9 @@ class Solver:
 
         result: bool = self._rule_fact(statement)
         solve_time: float = time.time() - solve_time_start
+
+        if self._verbose >= 3:
+            plot_statements(self._intervals, list(self._intervals.keys()))
 
         self._print_result(solve_time, graph_time, transitive_time, result)
 

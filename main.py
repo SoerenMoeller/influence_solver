@@ -100,8 +100,8 @@ def main():
     }
     statement_3: tuple = ("a", (1, 2), QUALITY_MONO, (1, 2), "c")
 
-    solver: Solver = Solver(model_3)
-    result: bool = solver.solve(statement_3)
+    solver: Solver = Solver(model_0)
+    result: bool = solver.solve(statement_0)
 
     """ testing forked version
     x = "x"
