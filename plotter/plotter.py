@@ -15,9 +15,9 @@ def plot_statements(intervals: dict, influences: list[tuple[str, str]], statemen
     plt.subplots_adjust(left=0.1,
                         bottom=0.1,
                         right=0.9,
-                        top=0.9,
+                        top=0.95,
                         wspace=0.4,
-                        hspace=0.4)
+                        hspace=1)
 
     for index, influence in enumerate(influences):
         if influence not in intervals:

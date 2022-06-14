@@ -1,3 +1,5 @@
+from typing import Union
+
 from intervaltree_custom.interval import Interval
 from intervaltree_custom.intervaltree import IntervalTree
 from .constants import *
@@ -55,13 +57,14 @@ def is_stronger_as(quality_a: str, quality_b: str) -> bool:
         assert False, f"Tried to strengthen unknown quality pair: {quality_a}, {quality_b}"
 
 
-def add_to_tree(model: tuple[IntervalTree, IntervalTree], statement: Interval, v=0) -> bool:
+def add_to_tree(model: tuple[IntervalTree, IntervalTree], statement: Interval, v=0) \
+        -> tuple[bool, Union[Interval, None]]:
     if statement is None:
-        return False
+        return False, None
 
     x_tree: IntervalTree = model[0]
     if statement in x_tree:
-        return False
+        return False, None
 
     overlap: set[Interval] = x_tree[statement.begin: statement.end]
     enveloping: set[Interval] = {i for i in overlap if i.begin >= statement.begin and i.end <= statement.end}
@@ -78,18 +81,18 @@ def add_to_tree(model: tuple[IntervalTree, IntervalTree], statement: Interval, v
             model[0].add(statement)
             model[1].add(statement.turn_interval())
 
-            if v >= 2:
+            if 2 <= v <= 3:
                 print(f"=== removed interval -{interval}- for stronger interval -{statement}- ===")
 
-            return True
+            return True, interval
 
     for interval in enveloped_by:
         if is_stronger_as(interval.quality, statement.quality) and \
                 interval.begin_other >= statement.begin_other and interval.end_other <= statement.end_other:
-            if v >= 2:
+            if 2 <= v <= 3:
                 print(f"=== did not include interval -{statement}- because of stronger interval -{interval}- ===")
-            return False
+            return False, None
 
     model[0].add(statement)
     model[1].add(statement.turn_interval())
-    return True
+    return True, None

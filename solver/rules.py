@@ -1,17 +1,17 @@
 from typing import Union
 from intervaltree_custom.intervaltree import Interval
-from .util import quality_add, min_quality, quality_times
+from .util import quality_add, min_quality, quality_times, is_stronger_as
 from .constants import *
 
 
 def interval_join(interval_a: Interval, interval_b: Interval) -> Union[Interval, None]:
-    if not (interval_a.overlaps(interval_b) and interval_a.turn_interval().overlaps(interval_b.turn_interval())):
+    if not interval_a.begin <= interval_b.begin <= interval_a.end <= interval_b.end:
         return None
 
     start_x: float = min(interval_a.begin, interval_b.begin)
     end_x: float = max(interval_a.end, interval_b.end)
     start_y: float = min(interval_a.begin_other, interval_b.begin_other)
-    end_y: float = max(interval_a.begin_other, interval_a.end_other)
+    end_y: float = max(interval_a.end_other, interval_a.end_other)
     quality: str = quality_add(interval_a.quality, interval_b.quality)
 
     return Interval(start_x, end_x, quality, start_y, end_y)
@@ -71,8 +71,24 @@ def interval_strength(interval_a: Interval, interval_b: Interval) -> Union[Inter
 
 
 def transitivity(interval_a: Interval, interval_b: Interval) -> Union[Interval, None]:
-    if not (interval_a.begin_other <= interval_b.begin and interval_a.end_other <= interval_b.end):
+    if not (interval_a.begin_other >= interval_b.begin and interval_a.end_other <= interval_b.end):
         return None
 
     quality: str = quality_times(interval_a.quality, interval_b.quality)
     return Interval(interval_a.begin, interval_a.end, quality, interval_b.begin_other, interval_b.end_other)
+
+
+def rule_fact(statement: tuple, area: set[Interval]) -> bool:
+    quality: str = statement[2]
+    interval_x: tuple[float, float] = statement[1]
+    interval_y: tuple[float, float] = statement[3]
+
+    area = {iv for iv in area if iv.begin <= interval_x[0] and iv.end >= interval_x[1]
+            and iv.begin_other >= interval_y[0] and iv.end_other <= interval_y[1]}
+
+    for sub_interval in area:
+        quality_sub: str = sub_interval.quality
+
+        if is_stronger_as(quality_sub, quality):
+            return True
+    return False
