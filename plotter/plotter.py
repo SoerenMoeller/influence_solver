@@ -48,8 +48,6 @@ def plot_statements(intervals: dict, influences: list[tuple[str, str]], statemen
                                                     interval_y[0], interval_y[1])
             plot_statement(axis[index], statement_interval, "red")
 
-    plt.show()
-
 
 def plot_statement(ax, statement: Interval, color="black"):
     bottom: float = statement.begin_other
@@ -71,3 +69,7 @@ def plot_statement(ax, statement: Interval, color="black"):
     image_box = OffsetImage(arr_lena, zoom=0.2)
     ab = AnnotationBbox(image_box, (position_x, position_y), frameon=False, pad=0)
     ax.add_artist(ab)
+
+
+def show_plot():
+    plt.show()

@@ -2,7 +2,8 @@ import bisect
 
 from intervaltree_custom.intervaltree import IntervalTree
 from intervaltree_custom.interval import Interval
-from plotter.plotter import plot_statements
+from plotter.plotter import plot_statements, show_plot
+from .constants import QUALITY_ARB
 
 from .dependency_graph import add_to_graph, setup_graph, get_dependency_graph
 from .rules import interval_strength_left, interval_strength_right, interval_join, interval_strength, transitivity
@@ -62,6 +63,7 @@ class Solver:
         solve_time_start: float = time.time()
         influencing: str = statement[0]
         influenced: str = statement[4]
+        quality: str = statement[2]
         interval_x: tuple[float, float] = statement[1]
         interval_y: tuple[float, float] = statement[3]
         if self._verbose >= 3:
@@ -77,11 +79,7 @@ class Solver:
         model: tuple = self._intervals[(influencing, influenced)]
 
         transitive_time_start: float = time.time()
-        print(self._length())
         self._build_transitive_cover(order)
-        print(self._length())
-        # TODO: build transitives
-        # TODO: do we need ALL sub intervals?
         transitive_time: float = time.time() - transitive_time_start
 
         # get all overlapping on x
@@ -90,15 +88,23 @@ class Solver:
 
         # not solvable if the condition is not met
         if not overlaps_x.issubset(overlaps_y):
+            self._print_result(time.time() - solve_time_start, graph_time, transitive_time, False)
             return False
+
+        if _check_for_gap(sorted(overlaps_x))[0]:
+            if self._verbose >= 2:
+                print("== gap found in the searching area ==")
+
+            self._print_result(time.time() - solve_time_start, graph_time, transitive_time, quality == QUALITY_ARB)
+            return quality == QUALITY_ARB
 
         # check if solvable from one of the statements in the model
         if self._rule_fact(statement):
+            self._print_result(time.time() - solve_time_start, graph_time, transitive_time, True)
             print("solved instantly")
             # return True
 
         # propagate now to create the strongest possible intervals (interval and quality wise)
-        # TODO: is this needed? - no
         # build all overlapping intervals in the tube first
         """
         tube_tree_y: IntervalTree = IntervalTree(overlaps_y)
@@ -112,10 +118,39 @@ class Solver:
                     model[0].add(rule)
                     model[1].add(norm_interval(rule))
         """
+
         # propagate stronger intervals from left to right
         sorted_tube: list[Interval] = sorted(overlaps_y)
         all_indices: set[int] = {sorted_tube.index(elem) for elem in overlaps_x}
         max_index = max(all_indices) if len(all_indices) > 0 else -1
+        min_index = min(all_indices) if len(all_indices) > 0 else -1
+
+        if max_index != -1:
+            result, new_tube = _check_for_gap(sorted_tube, chop=True, index=max_index, threshold=interval_y)
+
+            if result:
+                if self._verbose >= 2:
+                    print(f"== found gap or unnecessary precise interval and chopped right end off ==")
+                    print(f"== Old: {sorted_tube} ==")
+                    print(f"== New: {new_tube} ==")
+
+                sorted_tube = new_tube
+
+        if min_index != -1:
+            result, new_tube = _check_for_gap_reversed(sorted_tube, chop=True, index=min_index, threshold=interval_y)
+
+            if result:
+                if self._verbose >= 2:
+                    print(f"== found gap or unnecessary precise interval and chopped left end off ==")
+                    print(f"== Old: {sorted_tube} ==")
+                    print(f"== New: {new_tube} ==")
+
+                max_index -= (len(sorted_tube) - len(new_tube))
+                sorted_tube = new_tube
+
+        self._intervals[(influencing, influenced)] = (IntervalTree(sorted_tube), IntervalTree([interval.turn_interval() for interval in sorted_tube]))
+        plot_statements(self._intervals, [(influencing, influenced)])
+
         for i in range(max_index):
             rule: Interval = interval_strength_left(sorted_tube[i], sorted_tube[i + 1])
 
@@ -164,6 +199,7 @@ class Solver:
 
         if self._verbose >= 3:
             plot_statements(self._intervals, list(self._intervals.keys()), statement)
+            show_plot()
 
         self._print_result(solve_time, graph_time, transitive_time, result)
 
@@ -194,20 +230,16 @@ class Solver:
                         continue
 
                     self._strengthen_interval_height(i, j)
-                    print(self._length())
                     self._strengthen_interval_height_left(i, j)
-                    print(self._length())
                     self._strengthen_interval_height_right(i, j)
-                    print(self._length())
                     self._strengthen_interval_width(j, k)
                     self._build_transitives(i, j, k)
-                    return
 
     def _build_transitives(self, a: str, b: str, c: str):
         model_ab: tuple = self._intervals[(a, b)]
         model_bc: tuple = self._intervals[(b, c)]
         if (a, c) not in self._intervals:
-            self._intervals[(a, c)] = (IntervalTree, IntervalTree)
+            self._intervals[(a, c)] = (IntervalTree(), IntervalTree())
 
         for interval in model_bc[0]:
             enveloped: set[Interval] = model_ab[1].envelop(interval.begin, interval.end)
@@ -304,7 +336,6 @@ class Solver:
                     i += 1
                     offset = 1
 
-
     def _rule_fact(self, statement) -> bool:
         influencing: str = statement[0]
         influenced: str = statement[4]
@@ -332,3 +363,43 @@ class Solver:
 
     def __str__(self):
         return str(self._intervals)
+
+
+def _check_for_gap_reversed(intervals: list[Interval], index: int = 0, chop: bool = False, threshold: tuple = None) \
+        -> tuple[bool, list[Interval]]:
+    cond_x: bool = False
+    cond_y: bool = False
+
+    for i in range(index, -1, -1):
+        if threshold is not None:
+            if intervals[i].begin_other >= threshold[0]:
+                cond_x = True
+            if intervals[i].end_other <= threshold[1]:
+                cond_y = True
+
+        if intervals[i].distance_to(intervals[i + 1]) > 0 or (cond_x and cond_y):
+            if chop:
+                intervals = intervals[i + 1:]
+            return True, intervals
+
+    return False, []
+
+
+def _check_for_gap(intervals: list[Interval], index: int = 0, chop: bool = False, threshold: tuple = None) \
+        -> tuple[bool, list[Interval]]:
+    cond_x: bool = False
+    cond_y: bool = False
+
+    for i in range(index, len(intervals) - 1):
+        if threshold is not None:
+            if intervals[i].begin_other >= threshold[0]:
+                cond_x = True
+            if intervals[i].end_other <= threshold[1]:
+                cond_y = True
+
+        if intervals[i].distance_to(intervals[i + 1]) > 0 or (cond_x and cond_y):
+            if chop:
+                intervals = intervals[:i + 1]
+            return True, intervals
+
+    return False, []
