@@ -7,6 +7,7 @@ from .dependency_graph import add_to_graph, setup_graph, get_dependency_graph
 from .rules import *
 from .util import add_to_tree
 
+# TODO: Reflexive rule, Add reflexive statements?, Consistency?
 
 class Solver:
     _intervals: dict[tuple] = {}
