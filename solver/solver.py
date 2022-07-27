@@ -1,5 +1,6 @@
 import bisect
 import time
+from collections import deque
 
 from intervaltree_custom.intervaltree import IntervalTree
 from plotter.plotter import plot_statements, show_plot
@@ -139,7 +140,7 @@ class Solver:
 
         # build the widest intervals in the affected area
         sorted_area: list[Interval] = sorted(model[0][interval_x[0]:interval_x[1]])
-        sorted_area = self._strengthen_interval_width(sorted_area, model, threshold=interval_x[0], x=True)
+        sorted_area = self._strengthen_interval_width(sorted_area, model, interval_x[0], interval_x[1])
         tube_time: float = time.time() - tube_time_start
 
         result: bool = rule_fact(statement, set(sorted_area))
@@ -232,8 +233,7 @@ class Solver:
 
         for interval in intervals:
             overlapping: list[Interval] = sorted(height_tree[interval.begin:interval.end])
-            overlapping = self._strengthen_interval_width(overlapping, model_bc, threshold=interval.begin)
-            overlapping = [iv for iv in overlapping if iv.begin <= interval.begin and iv.end >= interval.end]
+            overlapping = self._strengthen_interval_width(overlapping, model_bc, interval.begin, interval.end)
 
             for overlapped_interval in overlapping:
                 rule: Interval = transitivity(interval.turn_interval(), overlapped_interval)
@@ -301,16 +301,21 @@ class Solver:
                 i += 1
                 offset = 1
 
-    def _strengthen_interval_width(self, sorted_ivs: list[Interval], model: tuple, threshold: float = None, x=False) \
+    def _strengthen_interval_width(self, sorted_ivs: list[Interval], model: tuple, start: float, end: float) \
+            -> list[Interval]:
+        return self._strengthen_interval_width_short(sorted_ivs, model, start) if len(sorted_ivs) < 20 else \
+            self._strengthen_interval_width_long(sorted_ivs, model, start, end)
+
+    def _strengthen_interval_width_short(self, sorted_ivs: list[Interval], model: tuple, start: float) \
             -> list[Interval]:
         all_intervals: list[Interval] = sorted_ivs
 
         i: int = 0
         offset: int = 1
         while i < len(all_intervals):
-            if threshold is not None and all_intervals[i].begin > threshold:
-                return all_intervals
-            if not i + offset < len(all_intervals):
+            if not all_intervals[i].contains_point(start):
+                return all_intervals[:i]
+            if not i + offset < len(all_intervals) or all_intervals[i].distance_to(all_intervals[i + offset]) > 0:
                 i += 1
                 offset = 1
                 continue
@@ -320,16 +325,44 @@ class Solver:
             if added[0]:
                 index: int = bisect.bisect_left(all_intervals, result)
                 all_intervals.insert(index, result)
-                #all_intervals = all_intervals[:index] + [result] + all_intervals[index:]
-                offset = 1
                 continue
-            if all_intervals[i].distance_to(all_intervals[i + offset]) > 0:
-                i += 1
-                offset = 1
-            else:
-                offset += 1
+            offset += 1
 
         return all_intervals
+
+    def _strengthen_interval_width_long(self, sorted_ivs: list[Interval], model: tuple, start: float, end: float) \
+            -> list[Interval]:
+        all_intervals: list[Interval] = sorted_ivs
+
+        match_start: deque = deque()
+        for iv in all_intervals:
+            if iv.contains_point(start):
+                match_start.append(iv)
+                continue
+            break
+
+        while len(match_start) > 0:
+            interval: Interval = match_start.popleft()
+            index: int = bisect.bisect_left(all_intervals, interval)
+            for i in range(len(all_intervals) - index):
+                if index + i < len(all_intervals) and interval.distance_to(all_intervals[index + i]) == 0:
+                    result = interval_join(interval, all_intervals[index + i])
+                    added: tuple[bool, Union[Interval, None]] = add_to_tree(model, result, self._verbose)
+                    if added[0]:
+                        added_index: int = bisect.bisect_left(all_intervals, result)
+                        all_intervals.insert(added_index, result)
+                        match_start.append(result)
+                    continue
+                break
+            if not (interval.begin <= start and interval.end >= end):
+                all_intervals.remove(interval)
+
+        border: int = len(all_intervals)
+        for i in range(len(all_intervals)):
+            if not all_intervals[i].contains_point(start):
+                border = i
+                break
+        return all_intervals[:border]
 
     def _length(self):
         length: int = 0
