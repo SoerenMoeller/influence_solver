@@ -12,7 +12,7 @@ from .util import add_to_tree
 
 class Solver:
     _intervals: dict[tuple] = {}
-    _verbose: int = 4
+    _verbose: int = 1
     _dependency_graph: DependencyGraph = DependencyGraph()
 
     def __init__(self, intervals=None):
@@ -78,7 +78,7 @@ class Solver:
 
         # build transitives
         transitive_time_start: float = time.time()
-        self._build_transitive_cover(order, influenced, interval_y)
+        self._build_transitive_cover(order, statement)
         transitive_time: float = time.time() - transitive_time_start
 
         # get all overlapping
@@ -198,7 +198,12 @@ class Solver:
             plot_statements(self._intervals, list(self._intervals.keys()), statement)
             show_plot()
 
-    def _build_transitive_cover(self, order: list[str], goal: str, needed_height: tuple[float, float]):
+    def _build_transitive_cover(self, order: list[str], statement: tuple):
+        start: str = statement[0]
+        goal: str = statement[4]
+        height: tuple[float, float] = statement[3]
+        width: tuple[float, float] = statement[1]
+
         for node in order:
             for pre in self._dependency_graph.get_pre(node):
                 model: tuple = self._intervals[(pre, node)]
@@ -207,25 +212,33 @@ class Solver:
                 self._strengthen_interval_height_sides(sorted_ivs, model)
                 self._strengthen_interval_height_side(sorted_ivs, model)
                 self._strengthen_interval_height_side(sorted_ivs, model, right=True)
-                self._build_transitives(pre, node, goal, needed_height)
+                self._build_transitives(pre, node, goal, statement)
 
                 self._dependency_graph.remove_node(node)
 
-    def _build_transitives(self, a: str, b: str, c: str, needed_height: tuple[float, float]):
+    def _build_transitives(self, a: str, b: str, c: str, statement: tuple):
+        start: str = statement[0]
+        height: tuple[float, float] = statement[3]
+        width: tuple[float, float] = statement[1]
+
         model_ab: tuple = self._intervals[(a, b)]
         model_bc: tuple = self._intervals[(b, c)]
         if (a, c) not in self._intervals:
             self._intervals[(a, c)] = (IntervalTree(), IntervalTree())
+
+        #intervals: set[Interval] = model_ab[1].all_intervals if start != a else {iv for iv in model_ab[1] if width[0]
+        #                                                                         <= iv.end_other and iv.begin_other <= width[1]}
         for interval in model_ab[1]:
             all_intervals: set[Interval] = {iv for iv in model_bc[0][interval.begin:interval.end]
-                                            if iv.begin_other >= needed_height[0] and iv.end_other <= needed_height[1]}
+                                            if iv.begin_other >= height[0] and iv.end_other <= height[1]}
             overlapping: list[Interval] = sorted(all_intervals)
             overlapping = self._strengthen_interval_width(overlapping, model_bc, threshold=interval.begin)
             overlapping = [iv for iv in overlapping if iv.begin <= interval.begin and iv.end >= interval.end]
 
             for overlapped_interval in overlapping:
                 rule: Interval = transitivity(interval.turn_interval(), overlapped_interval)
-                added: tuple[bool, Union[Interval, None]] = add_to_tree(self._intervals[(a, c)], rule, self._verbose)
+                added: tuple[bool, Union[Interval, None]] = add_to_tree(self._intervals[(a, c)], rule, self._verbose,
+                                                                        height=height)
                 if added[0]:
                     self._dependency_graph.add(added[1])
 
