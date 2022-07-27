@@ -11,7 +11,7 @@ from .util import add_to_tree
 
 class Solver:
     _intervals: dict[tuple] = {}
-    _verbose: int = 1
+    _verbose: int = 4
     _dependency_graph: dict[str, set[str]] = {}
 
     def __init__(self, intervals=None):
