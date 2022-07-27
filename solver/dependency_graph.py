@@ -1,101 +1,105 @@
-dependency_graph: dict[str, set[str]] = {}
+from collections import deque
 
+class DependencyGraph:
+    _start: str
+    _end: str
 
-def get_dependency_graph():
-    return dependency_graph
+    def __init__(self):
+        self._dependency_graph: dict[str, set[str]] = {}
 
+    def setup(self, start: str, end: str) -> list[str]:
+        self._start = start
+        self._end = end
 
-def setup_graph(start: str, end: str) -> list[str]:
-    # find all nodes between start and end
-    vars_on_path: set[str] = dsf(start, end, set(), set())
+        # find all nodes between start and end and remove the others
+        vars_on_path: set[str] = self._dsf(start, set(), set())
+        self._remove_nodes(set(self._dependency_graph.keys()) - vars_on_path)
 
-    # build an order on the variables
-    order: list[str] = topological_sort(vars_on_path)
+        # build an order on the variables
+        order: list[str] = self._bfs()
 
-    # build transitives
-    floyd_warshall()
+        return order
 
-    return order
+    def add(self, dependency: tuple):
+        a: str = dependency[0]
+        b: str = dependency[4]
 
+        if a not in self._dependency_graph:
+            self._dependency_graph[a] = set()
+        if b not in self._dependency_graph[a]:
+            self._dependency_graph[a].add(b)
+            self._check_for_cycle(dependency)
 
-def topological_sort(nodes):
-    visited: set = set()
-    stack: list = []
+    def _check_for_cycle(self, dependency: tuple):
+        for node in self._dependency_graph:
+            if self._dsf_cycle_check(node, set()):
+                raise Exception(f"Couldn't add rule {dependency}, because it destroys the implicit partial order.\n"
+                                f"This can be fixed by checking the dependency graph.\n"
+                                f"{self._dependency_graph}")
 
-    for node in nodes:
-        if node not in visited:
-            _topological_recursive(node, visited, stack)
+    def _dsf_cycle_check(self, current: str, stack: set[str]):
+        if current in stack:
+            return True
 
-    return stack[::-1]
+        stack.add(current)
 
+        if current in self._dependency_graph:
+            for node in self._dependency_graph[current]:
+                if self._dsf_cycle_check(node, stack.copy()):
+                    return True
+        return False
 
-def _topological_recursive(current, visited, stack):
-    visited.add(current)
+    def get_vars_on_path(self) -> set[str]:
+        return self._dsf(self._start, set(), set())
 
-    if current in dependency_graph:
-        for node in dependency_graph[current]:
-            if node not in visited:
-                _topological_recursive(node, visited, stack)
+    def get_pre(self, node: str) -> set[str]:
+        return {key for key, value in self._dependency_graph.items() if node in value}
 
-    stack.append(current)
+    def _bfs(self) -> list[str]:
+        assert self._start != self._end, "No need to search an order when start == end"
 
+        order: list = []
+        visited: set[str] = {self._start, self._end}
+        queue: deque = deque()
+        queue.append(self._start)
 
-def dsf(current: str, end: str, stack: set[str], nodes: set) -> set:
-    global dependency_graph
+        while len(queue) > 0:
+            node = queue.popleft()
+            for child in self._dependency_graph[node]:
+                if child not in visited:
+                    order.append(child)
+                    queue.append(child)
+                    visited.add(child)
 
-    if current in stack:
+        return order[::-1]
+
+    def _dsf(self, current: str, stack: set[str], nodes: set) -> set:
+        if current in stack:
+            return nodes
+
+        stack.add(current)
+
+        if current == self._end:
+            nodes.update(stack)
+            return nodes
+        if current in self._dependency_graph:
+            for node in self._dependency_graph[current]:
+                self._dsf(node, stack.copy(), nodes)
         return nodes
 
-    stack.add(current)
+    def _floyd_warshall(self):
+        for k in self._dependency_graph.keys():
+            for i in self._dependency_graph.keys():
+                for j in self._dependency_graph.keys():
+                    if k in self._dependency_graph[i] and j in self._dependency_graph[k]:
+                        self._dependency_graph[i].add(j)
 
-    if current == end:
-        nodes.update(stack)
-        return nodes
-    if current in dependency_graph:
-        for node in dependency_graph[current]:
-            dsf(node, end, stack.copy(), nodes)
-    return nodes
+    def _remove_nodes(self, vars_on_path: set[str]):
+        for node in vars_on_path:
+            self.remove_node(node)
 
-
-def add_to_graph(dependency: tuple):
-    global dependency_graph
-
-    a: str = dependency[0]
-    b: str = dependency[4]
-
-    if a not in dependency_graph:
-        dependency_graph[a] = set()
-    if b not in dependency_graph[a]:
-        dependency_graph[a].add(b)
-        check_for_cycle(dependency)
-
-
-def floyd_warshall():
-    for k in dependency_graph.keys():
-        for i in dependency_graph.keys():
-            for j in dependency_graph.keys():
-                if k in dependency_graph[i] and j in dependency_graph[k]:
-                    dependency_graph[i].add(j)
-
-
-def check_for_cycle(dependency: tuple):
-    for node in dependency_graph:
-        if dsf_cycle_check(node, set()):
-            raise Exception(f"Couldn't add rule {dependency}, because it destroys the implicit partial order.\n"
-                            f"This can be fixed by checking the dependency graph.\n"
-                            f"{dependency_graph}")
-
-
-def dsf_cycle_check(current: str, stack: set[str]):
-    global dependency_graph
-
-    if current in stack:
-        return True
-
-    stack.add(current)
-
-    if current in dependency_graph:
-        for node in dependency_graph[current]:
-            if dsf_cycle_check(node, stack.copy()):
-                return True
-    return False
+    def remove_node(self, node: str):
+        if node in self._dependency_graph:
+            del self._dependency_graph[node]
+        for value in self._dependency_graph.values():
+            value.discard(node)

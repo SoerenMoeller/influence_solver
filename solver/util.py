@@ -95,4 +95,4 @@ def add_to_tree(model: tuple[IntervalTree, IntervalTree], statement: Interval, v
 
     model[0].add(statement)
     model[1].add(statement.turn_interval())
-    return True, None
+    return True, statement
