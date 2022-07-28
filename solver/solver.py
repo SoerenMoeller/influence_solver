@@ -101,9 +101,10 @@ class Solver:
         if rule_fact(statement, overlaps_x):
             self._print_result(time.time() - solve_time_start, transitive_time, True, statement, start_amount)
             return True
-        # propagate stronger intervals from left to right
+
+        # check which area has to be checked for propagation
         sorted_tube: list[Interval] = sorted(overlaps_y)
-        _shorten_range(sorted_tube, statement)
+        sorted_tube = _shorten_range(sorted_tube, statement)
 
         # propagate (here, left and right is only needed once)
         tube_time_start: float = time.time()
@@ -112,7 +113,7 @@ class Solver:
         self._strengthen_interval_height_side_right(sorted_tube, model)
 
         # build the widest intervals in the affected area
-        sorted_area: list[Interval] = sorted(model[0][interval_x[0]:interval_x[1]])
+        sorted_area: list[Interval] = sorted(model[0][interval_x[0]:interval_x[1]]) # TODO: no query needed, use indices
         sorted_area = self._strengthen_interval_width(sorted_area, model, interval_x[0], interval_x[1])
         tube_time: float = time.time() - tube_time_start
 
@@ -378,13 +379,13 @@ def _shorten_range(intervals: list[Interval], statement: tuple) -> list[Interval
     interval_x: tuple[float, float] = statement[1]
     interval_y: tuple[float, float] = statement[3]
 
-    min_index: int = -1
+    min_index: int = 0
     for i in range(len(intervals)):
         if intervals[i].contains_point(interval_x[0]):
             min_index = i
             break
 
-    max_index: int = -1
+    max_index: int = len(intervals) - 1
     for i in range(len(intervals) - 1, -1, -1):
         if intervals[i].contains_point(interval_x[1]):
             max_index = i
