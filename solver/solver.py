@@ -81,7 +81,6 @@ class Solver:
         # get all overlapping
         overlaps_x: set[Interval] = model[0][interval_x[0]:interval_x[1]]
         overlaps_y: set[Interval] = {elem.turn_interval() for elem in model[1][interval_y[0]:interval_y[1]]}
-
         # not solvable if the condition is not met
         if not overlaps_x.issubset(overlaps_y):
             self._print_result(time.time() - solve_time_start, transitive_time, False, statement,
@@ -89,48 +88,22 @@ class Solver:
             return False
 
         # check if there is a gap
-        if _check_for_gap(sorted(overlaps_x))[0]:
+        if _check_for_gap(sorted(overlaps_x)):
             if 2 <= self._verbose <= 3:
                 print("== gap found in the searching area ==")
 
             self._print_result(time.time() - solve_time_start, transitive_time, quality == QUALITY_ARB,
                                statement, start_amount)
+
             return quality == QUALITY_ARB
 
         # check if solvable from one of the statements in the model
         if rule_fact(statement, overlaps_x):
-            self._print_result(time.time() - solve_time_start, transitive_time, True, statement,
-                               start_amount)
+            self._print_result(time.time() - solve_time_start, transitive_time, True, statement, start_amount)
             return True
-
         # propagate stronger intervals from left to right
         sorted_tube: list[Interval] = sorted(overlaps_y)
-        all_indices: set[int] = {sorted_tube.index(elem) for elem in overlaps_x}
-        max_index = max(all_indices) if len(all_indices) > 0 else -1
-        min_index = min(all_indices) if len(all_indices) > 0 else -1
-
-        if max_index != -1:
-            result, new_tube = _check_for_gap(sorted_tube, chop=True, index=max_index, threshold=interval_y)
-
-            if result:
-                if 2 <= self._verbose <= 3:
-                    print(f"== found gap or unnecessary precise interval and chopped right end off ==")
-                    print(f"== Old: {sorted_tube} ==")
-                    print(f"== New: {new_tube} ==")
-
-                sorted_tube = new_tube
-
-        if min_index != -1:
-            result, new_tube = _check_for_gap_reversed(sorted_tube, chop=True, index=min_index, threshold=interval_y)
-
-            if result:
-                if 2 <= self._verbose <= 3:
-                    print(f"== found gap or unnecessary precise interval and chopped left end off ==")
-                    print(f"== Old: {sorted_tube} ==")
-                    print(f"== New: {new_tube} ==")
-
-                max_index -= (len(sorted_tube) - len(new_tube))
-                sorted_tube = new_tube
+        _shorten_range(sorted_tube, statement)
 
         # propagate (here, left and right is only needed once)
         tube_time_start: float = time.time()
@@ -140,15 +113,13 @@ class Solver:
 
         # build the widest intervals in the affected area
         sorted_area: list[Interval] = sorted(model[0][interval_x[0]:interval_x[1]])
-        print(len(sorted_area))
         sorted_area = self._strengthen_interval_width(sorted_area, model, interval_x[0], interval_x[1])
         tube_time: float = time.time() - tube_time_start
 
         result: bool = rule_fact(statement, set(sorted_area))
         solve_time: float = time.time() - solve_time_start
 
-        self._print_result(solve_time, transitive_time, result, statement, start_amount,
-                           tube_time=tube_time)
+        self._print_result(solve_time, transitive_time, result, statement, start_amount, tube_time=tube_time)
 
         return result
 
@@ -238,10 +209,9 @@ class Solver:
 
             for overlapped_interval in overlapping:
                 rule: Interval = transitivity(interval.turn_interval(), overlapped_interval)
-                added: tuple[bool, Union[Interval, None]] = add_to_tree(self._intervals[(a, c)], rule, self._verbose,
-                                                                        height=height)
-                if added[0]:
-                    self._dependency_graph.add(added[1])
+                added: bool = add_to_tree(self._intervals[(a, c)], rule, self._verbose, height)
+                if added:
+                    self._dependency_graph.add(rule)
 
     def _strengthen_interval_height(self, sorted_ivs: list[Interval], model: tuple):
         all_intervals: list[Interval] = sorted_ivs
@@ -253,8 +223,8 @@ class Solver:
             offset: int = 1
             while i + offset < len(all_intervals) and all_intervals[i].distance_to(all_intervals[i + offset]) == 0:
                 result = interval_strength(all_intervals[i], all_intervals[i + offset])
-                added: tuple[bool, Union[Interval, None]] = add_to_tree(model, result, self._verbose)
-                if added[0]:
+                added: bool = add_to_tree(model, result, self._verbose)
+                if added:
                     index: int = bisect.bisect_left(all_intervals, result)
                     all_intervals.insert(index, result)
                     updated = True
@@ -276,8 +246,8 @@ class Solver:
                 if all_intervals[i].distance_to(all_intervals[i + offset]) > 0:
                     break
                 result = interval_strength_right(all_intervals[i], all_intervals[i + offset])
-                added: tuple[bool, Union[Interval, None]] = add_to_tree(model, result, self._verbose)
-                if added[0]:
+                added: bool = add_to_tree(model, result, self._verbose)
+                if added:
                     all_intervals[i] = result
                     updated = True
 
@@ -286,8 +256,8 @@ class Solver:
                 if all_intervals[i - offset].distance_to(all_intervals[i]) > 0:
                     break
                 result = interval_strength_left(all_intervals[i - offset], all_intervals[i])
-                added: tuple[bool, Union[Interval, None]] = add_to_tree(model, result, self._verbose)
-                if added[0]:
+                added: bool = add_to_tree(model, result, self._verbose)
+                if added:
                     all_intervals[i] = result
                     updated = True
 
@@ -305,8 +275,8 @@ class Solver:
                 if all_intervals[i - offset].distance_to(all_intervals[i]) > 0:
                     break
                 result = interval_strength_left(all_intervals[i - offset], all_intervals[i])
-                added: tuple[bool, Union[Interval, None]] = add_to_tree(model, result, self._verbose)
-                if added[0]:
+                added: bool = add_to_tree(model, result, self._verbose)
+                if added:
                     all_intervals[i] = result
             i -= 1
 
@@ -319,36 +289,10 @@ class Solver:
                 if all_intervals[i].distance_to(all_intervals[i + offset]) > 0:
                     break
                 result = interval_strength_right(all_intervals[i], all_intervals[i + offset])
-                added: tuple[bool, Union[Interval, None]] = add_to_tree(model, result, self._verbose)
-                if added[0]:
+                added: bool = add_to_tree(model, result, self._verbose)
+                if added:
                     all_intervals[i] = result
             i += 1
-        """
-        all_intervals: list[Interval] = sorted_ivs
-        if right:
-            all_intervals = sorted(sorted_ivs, key=lambda x: x.end, reverse=True)
-
-        i: int = 0
-        offset: int = 1
-        while i < len(all_intervals):
-            if not i + offset < len(all_intervals):
-                i += 1
-                offset = 1
-                continue
-
-            if right:
-                result = interval_strength_right(all_intervals[i + offset], all_intervals[i])
-            else:
-                result = interval_strength_left(all_intervals[i], all_intervals[i + offset])
-            added: tuple[bool, Union[Interval, None]] = add_to_tree(model, result, self._verbose)
-            if added[0]:
-                all_intervals[i + offset] = result
-            if all_intervals[i].distance_to(all_intervals[i + offset]) == 0:
-                offset += 1
-            else:
-                i += 1
-                offset = 1
-        """
 
     def _strengthen_interval_width(self, sorted_ivs: list[Interval], model: tuple, start: float, end: float) \
             -> list[Interval]:
@@ -370,8 +314,8 @@ class Solver:
                 continue
 
             result = interval_join(all_intervals[i], all_intervals[i + offset])
-            added: tuple[bool, Union[Interval, None]] = add_to_tree(model, result, self._verbose)
-            if added[0]:
+            added: bool = add_to_tree(model, result, self._verbose)
+            if added:
                 index: int = bisect.bisect_left(all_intervals, result)
                 all_intervals.insert(index, result)
                 continue
@@ -396,8 +340,8 @@ class Solver:
             for i in range(len(all_intervals) - index):
                 if index + i < len(all_intervals) and interval.distance_to(all_intervals[index + i]) == 0:
                     result = interval_join(interval, all_intervals[index + i])
-                    added: tuple[bool, Union[Interval, None]] = add_to_tree(model, result, self._verbose)
-                    if added[0]:
+                    added: bool = add_to_tree(model, result, self._verbose)
+                    if added:
                         added_index: int = bisect.bisect_left(all_intervals, result)
                         all_intervals.insert(added_index, result)
                         match_start.append(result)
@@ -423,42 +367,55 @@ class Solver:
         return str(self._intervals)
 
 
-# TODO: Cancel when arbitrary is in the way?
-def _check_for_gap_reversed(intervals: list[Interval], index: int = 0, chop: bool = False, threshold: tuple = None) \
-        -> tuple[bool, list[Interval]]:
-    cond_x: bool = False
-    cond_y: bool = False
-
-    for i in range(index, -1, -1):
-        if threshold is not None:
-            if intervals[i].begin_other >= threshold[0]:
-                cond_x = True
-            if intervals[i].end_other <= threshold[1]:
-                cond_y = True
-
-        if intervals[i].distance_to(intervals[i + 1]) > 0 or (cond_x and cond_y):
-            if chop:
-                intervals = intervals[i + 1:]
-            return True, intervals
-
-    return False, []
+def _check_for_gap(intervals: list[Interval]) -> bool:
+    for i in range(len(intervals) - 1):
+        if intervals[i].distance_to(intervals[i + 1]) > 0:
+            return True
+    return False
 
 
-def _check_for_gap(intervals: list[Interval], index: int = 0, chop: bool = False, threshold: tuple = None) \
-        -> tuple[bool, list[Interval]]:
-    cond_x: bool = False
-    cond_y: bool = False
+def _shorten_range(intervals: list[Interval], statement: tuple) -> list[Interval]:
+    interval_x: tuple[float, float] = statement[1]
+    interval_y: tuple[float, float] = statement[3]
 
-    for i in range(index, len(intervals) - 1):
-        if threshold is not None:
-            if intervals[i].begin_other >= threshold[0]:
-                cond_x = True
-            if intervals[i].end_other <= threshold[1]:
-                cond_y = True
+    min_index: int = -1
+    for i in range(len(intervals)):
+        if intervals[i].contains_point(interval_x[0]):
+            min_index = i
+            break
 
-        if intervals[i].distance_to(intervals[i + 1]) > 0 or (cond_x and cond_y):
-            if chop:
-                intervals = intervals[:i + 1]
-            return True, intervals
+    max_index: int = -1
+    for i in range(len(intervals) - 1, -1, -1):
+        if intervals[i].contains_point(interval_x[1]):
+            max_index = i
+            break
 
-    return False, []
+    chop_right_index: int = len(intervals) - 1
+    y_begin: bool = False
+    y_end: bool = False
+    if max_index != -1:
+        for i in range(max_index, len(intervals) - 1):
+            if intervals[i].begin_other >= interval_y[0]:
+                y_begin = True
+            if intervals[i].end_other <= interval_y[1]:
+                y_end = True
+            if intervals[i].distance_to(intervals[i + 1]) > 0 or intervals[i].quality == QUALITY_ARB \
+                    or (y_begin and y_end):
+                chop_right_index = i
+                break
+
+    chop_left_index: int = 0
+    y_begin: bool = False
+    y_end: bool = False
+    if min_index != -1:
+        for i in range(min_index, 0, -1):
+            if intervals[i].begin_other >= interval_y[0]:
+                y_begin = True
+            if intervals[i].end_other <= interval_y[1]:
+                y_end = True
+            if intervals[i].distance_to(intervals[i - 1]) > 0 or intervals[i].quality == QUALITY_ARB \
+                    or (y_begin and y_end):
+                chop_left_index = i
+                break
+
+    return intervals[chop_left_index:chop_right_index + 1]
