@@ -134,12 +134,13 @@ class Solver:
 
         # propagate (here, left and right is only needed once)
         tube_time_start: float = time.time()
-        sorted_tube = self._strengthen_interval_height(sorted_tube, model)
-        self._strengthen_interval_height_side(sorted_tube, model)
-        self._strengthen_interval_height_side(sorted_tube, model, right=True)
+        self._strengthen_interval_height(sorted_tube, model)
+        self._strengthen_interval_height_side_left(sorted_tube, model)
+        self._strengthen_interval_height_side_right(sorted_tube, model)
 
         # build the widest intervals in the affected area
         sorted_area: list[Interval] = sorted(model[0][interval_x[0]:interval_x[1]])
+        print(len(sorted_area))
         sorted_area = self._strengthen_interval_width(sorted_area, model, interval_x[0], interval_x[1])
         tube_time: float = time.time() - tube_time_start
 
@@ -200,7 +201,7 @@ class Solver:
             for pre in self._dependency_graph.get_pre(node):
                 model: tuple = self._intervals[(pre, node)]
                 sorted_ivs: list[Interval] = sorted(model[0].all_intervals)
-                sorted_ivs = self._strengthen_interval_height(sorted_ivs, model)
+                self._strengthen_interval_height(sorted_ivs, model)
                 self._strengthen_interval_height_sides(sorted_ivs, model)
                 self._build_transitives(pre, node, goal, statement)
 
@@ -242,40 +243,87 @@ class Solver:
                 if added[0]:
                     self._dependency_graph.add(added[1])
 
-    def _strengthen_interval_height(self, sorted_ivs: list[Interval], model: tuple) -> list[Interval]:
+    def _strengthen_interval_height(self, sorted_ivs: list[Interval], model: tuple):
         all_intervals: list[Interval] = sorted_ivs
 
         i: int = 0
-        offset: int = 1
         while i < len(all_intervals):
-            if not i + offset < len(all_intervals):
-                i += 1
-                offset = 1
-                continue
+            updated: bool = False
 
-            result = interval_strength(all_intervals[i], all_intervals[i + offset])
-            added: tuple[bool, Union[Interval, None]] = add_to_tree(model, result, self._verbose)
-            if added[0]:
-                index: int = bisect.bisect_left(all_intervals, result)
-                all_intervals.insert(index, result)
-                #all_intervals = all_intervals[:index] + [result] + all_intervals[index:]
-                continue
-            if all_intervals[i].distance_to(all_intervals[i + offset]) > 0:
-                i += 1
-                offset = 1
-            else:
+            offset: int = 1
+            while i + offset < len(all_intervals) and all_intervals[i].distance_to(all_intervals[i + offset]) == 0:
+                result = interval_strength(all_intervals[i], all_intervals[i + offset])
+                added: tuple[bool, Union[Interval, None]] = add_to_tree(model, result, self._verbose)
+                if added[0]:
+                    index: int = bisect.bisect_left(all_intervals, result)
+                    all_intervals.insert(index, result)
+                    updated = True
+                    continue
                 offset += 1
 
-        return all_intervals
+            if not updated:
+                i += 1
 
     def _strengthen_interval_height_sides(self, sorted_ivs: list[Interval], model: tuple):
-        copy = []
-        while sorted_ivs != copy:
-            copy = sorted_ivs.copy()
-            self._strengthen_interval_height_side(sorted_ivs, model)
-            self._strengthen_interval_height_side(sorted_ivs, model, right=True)
+        all_intervals: list[Interval] = sorted_ivs
 
-    def _strengthen_interval_height_side(self, sorted_ivs: list[Interval], model: tuple, right: bool = False):
+        i: int = 0
+        while i < len(all_intervals):
+            updated: bool = False
+
+            # right check
+            for offset in range(1, len(all_intervals) - 1 - i):
+                if all_intervals[i].distance_to(all_intervals[i + offset]) > 0:
+                    break
+                result = interval_strength_right(all_intervals[i], all_intervals[i + offset])
+                added: tuple[bool, Union[Interval, None]] = add_to_tree(model, result, self._verbose)
+                if added[0]:
+                    all_intervals[i] = result
+                    updated = True
+
+            # left check
+            for offset in range(1, i + 1):
+                if all_intervals[i - offset].distance_to(all_intervals[i]) > 0:
+                    break
+                result = interval_strength_left(all_intervals[i - offset], all_intervals[i])
+                added: tuple[bool, Union[Interval, None]] = add_to_tree(model, result, self._verbose)
+                if added[0]:
+                    all_intervals[i] = result
+                    updated = True
+
+            if updated and i > 0:
+                i -= 1
+                continue
+            i += 1
+
+    def _strengthen_interval_height_side_left(self, sorted_ivs: list[Interval], model: tuple):
+        all_intervals: list[Interval] = sorted_ivs
+
+        i: int = len(all_intervals) - 1
+        while i >= 0:
+            for offset in range(1, i + 1):
+                if all_intervals[i - offset].distance_to(all_intervals[i]) > 0:
+                    break
+                result = interval_strength_left(all_intervals[i - offset], all_intervals[i])
+                added: tuple[bool, Union[Interval, None]] = add_to_tree(model, result, self._verbose)
+                if added[0]:
+                    all_intervals[i] = result
+            i -= 1
+
+    def _strengthen_interval_height_side_right(self, sorted_ivs: list[Interval], model: tuple):
+        all_intervals: list[Interval] = sorted_ivs
+
+        i: int = 0
+        while i < len(all_intervals):
+            for offset in range(1, len(all_intervals) - 1 - i):
+                if all_intervals[i].distance_to(all_intervals[i + offset]) > 0:
+                    break
+                result = interval_strength_right(all_intervals[i], all_intervals[i + offset])
+                added: tuple[bool, Union[Interval, None]] = add_to_tree(model, result, self._verbose)
+                if added[0]:
+                    all_intervals[i] = result
+            i += 1
+        """
         all_intervals: list[Interval] = sorted_ivs
         if right:
             all_intervals = sorted(sorted_ivs, key=lambda x: x.end, reverse=True)
@@ -300,6 +348,7 @@ class Solver:
             else:
                 i += 1
                 offset = 1
+        """
 
     def _strengthen_interval_width(self, sorted_ivs: list[Interval], model: tuple, start: float, end: float) \
             -> list[Interval]:
