@@ -57,14 +57,13 @@ def is_stronger_as(quality_a: str, quality_b: str) -> bool:
         assert False, f"Tried to strengthen unknown quality pair: {quality_a}, {quality_b}"
 
 
-def add_to_tree(model: tuple[IntervalTree, IntervalTree], statement: Interval, v=0) \
-        -> tuple[bool, Union[Interval, None]]:
+def add_to_tree(model: tuple[IntervalTree, IntervalTree], statement: Interval, v=0, height=None) -> bool:
     if statement is None:
-        return False, None
+        return False
 
     x_tree: IntervalTree = model[0]
     if statement in x_tree:
-        return False, None
+        return False
 
     overlap: set[Interval] = x_tree[statement.begin: statement.end]
     enveloping: set[Interval] = {i for i in overlap if i.begin >= statement.begin and i.end <= statement.end}
@@ -73,7 +72,8 @@ def add_to_tree(model: tuple[IntervalTree, IntervalTree], statement: Interval, v
     # if new statement envelops interval with less width and more height and weaker quality, we can remove the old one
     for interval in enveloping:
         if is_stronger_as(statement.quality, interval.quality) and \
-                statement.begin_other >= interval.begin_other and statement.end_other <= interval.end_other:
+                ((statement.begin_other >= interval.begin_other and statement.end_other <= interval.end_other)
+                 or (height is not None and height[0] <= statement.begin_other and height[1] >= statement.end_other)):
             # remove old interval (not needed anymore)
             model[0].remove(interval)
             model[1].remove(interval.turn_interval())
@@ -84,15 +84,16 @@ def add_to_tree(model: tuple[IntervalTree, IntervalTree], statement: Interval, v
             if 2 <= v <= 3:
                 print(f"=== removed interval -{interval}- for stronger interval -{statement}- ===")
 
-            return True, interval
+            return True
 
     for interval in enveloped_by:
         if is_stronger_as(interval.quality, statement.quality) and \
-                interval.begin_other >= statement.begin_other and interval.end_other <= statement.end_other:
+                (interval.begin_other >= statement.begin_other and interval.end_other <= statement.end_other
+                 or (height is not None and height[0] >= interval.begin_other and height[1] <= interval.end_other)):
             if 2 <= v <= 3:
                 print(f"=== did not include interval -{statement}- because of stronger interval -{interval}- ===")
-            return False, None
+            return False
 
     model[0].add(statement)
     model[1].add(statement.turn_interval())
-    return True, None
+    return True
