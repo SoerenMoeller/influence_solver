@@ -9,7 +9,7 @@ from .rules import *
 from .util import add_to_tree
 
 # TODO: Reflexive rule, Add reflexive statements?, Consistency?
-
+# TODO: Höhe null -> Konstant / ARB rausschmeißen
 
 class Solver:
     _intervals: dict[tuple] = {}
@@ -113,7 +113,7 @@ class Solver:
         self._strengthen_interval_height_side_right(sorted_tube, model)
 
         # build the widest intervals in the affected area
-        sorted_area: list[Interval] = sorted(model[0][interval_x[0]:interval_x[1]]) 
+        sorted_area: list[Interval] = sorted(model[0][interval_x[0]:interval_x[1]])
         sorted_area = self._strengthen_interval_width(sorted_area, model, interval_x[0], interval_x[1])
         tube_time: float = time.time() - tube_time_start
 
