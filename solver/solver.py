@@ -15,6 +15,7 @@ class Solver:
     _intervals: dict[tuple] = {}
     _verbose: int = 1
     _dependency_graph: DependencyGraph = DependencyGraph()
+    _tmp_intervals: dict[tuple, set] = {}
 
     def __init__(self, intervals=None):
         if intervals is None:
@@ -49,15 +50,24 @@ class Solver:
             tree_y: IntervalTree = IntervalTree()
             self._intervals[selector] = (tree_x, tree_y)
 
-        model: tuple = self._intervals[selector]
+            self._tmp_intervals[selector] = set()
+
         interval: Interval = Interval(interval_x[0], interval_x[1], quality, interval_y[0], interval_y[1])
-        add_to_tree(model, interval, self._verbose)
+
+        self._tmp_intervals[selector].add(interval)
 
     def _add_multiple_intervals(self, intervals: list[tuple]):
         for interval in intervals:
             self._add_single_interval(interval)
 
     def solve(self, statement: tuple) -> bool:
+        adding_time_start: float = time.time()
+        for key in self._tmp_intervals:
+            model = self._intervals[key]
+            for iv in self._tmp_intervals[key]:
+                add_to_tree(model, iv, self._verbose)
+        adding_time: float = time.time() - adding_time_start
+
         solve_time_start: float = time.time()
         influencing: str = statement[0]
         influenced: str = statement[4]
@@ -83,7 +93,7 @@ class Solver:
         overlaps_y: set[Interval] = {elem.turn_interval() for elem in model[1][interval_y[0]:interval_y[1]]}
         # not solvable if the condition is not met
         if not overlaps_x.issubset(overlaps_y):
-            self._print_result(time.time() - solve_time_start, transitive_time, False, statement,
+            self._print_result(adding_time, time.time() - solve_time_start, transitive_time, False, statement,
                                start_amount)
             return False
 
@@ -92,14 +102,14 @@ class Solver:
             if 2 <= self._verbose <= 3:
                 print("== gap found in the searching area ==")
 
-            self._print_result(time.time() - solve_time_start, transitive_time, quality == QUALITY_ARB,
+            self._print_result(adding_time, time.time() - solve_time_start, transitive_time, quality == QUALITY_ARB,
                                statement, start_amount)
 
             return quality == QUALITY_ARB
 
         # check if solvable from one of the statements in the model
         if rule_fact(statement, overlaps_x):
-            self._print_result(time.time() - solve_time_start, transitive_time, True, statement, start_amount)
+            self._print_result(adding_time, time.time() - solve_time_start, transitive_time, True, statement, start_amount)
             return True
 
         # check which area has to be checked for propagation
@@ -120,21 +130,23 @@ class Solver:
         result: bool = rule_fact(statement, set(sorted_area))
         solve_time: float = time.time() - solve_time_start
 
-        self._print_result(solve_time, transitive_time, result, statement, start_amount, tube_time=tube_time)
+        self._print_result(adding_time, solve_time, transitive_time, result, statement, start_amount, tube_time=tube_time)
 
         return result
 
-    def _print_result(self, solve_time: float, transitive_time: float, result: bool,
+    def _print_result(self, adding_time: float, solve_time: float, transitive_time: float, result: bool,
                       statement: tuple, amount: int, tube_time: float = None):
         if self._verbose >= 1:
+            adding: str = f"Adding statements time:      {adding_time}s"
             total: str = f"Total solving time:          {solve_time}s"
             building: str = f"Building transitives:        {transitive_time}s"
             tube: str = ""
             if tube_time is not None:
                 tube = f"Solving tube time:           {tube_time}s"
-            max_length: int = max(len(total), len(building), len(tube))
+            max_length: int = max(len(total), len(building), len(tube), len(adding))
 
             print("\n" + "=" * max_length)
+            print(adding)
             print(total)
             print(building)
             if tube_time is not None:
