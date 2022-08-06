@@ -14,6 +14,7 @@ Changed:
 - Changed __cmp__
 """
 from solver.constants import QUALITY_CONS
+from solver.util import is_stronger_as
 
 """
 intervaltree: A mutable, self-balancing intervallist tree for Python 2 and 3.
@@ -82,6 +83,10 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
             return self.overlaps(begin.begin, begin.end)
         except:
             return self.contains_point(begin)
+
+    def stronger_as(self, iv):
+        return is_stronger_as(self.quality, iv.quality) and \
+            self.begin_other >= iv.begin_other and self.end_other <= iv.end_other
 
     def overlap_size(self, begin, end=None):
         """

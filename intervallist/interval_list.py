@@ -17,7 +17,7 @@ class IntervalList(MutableSet):
         for iv in ivs:
             self.add(iv)
 
-    def add(self, statement: Interval, v=0, intersect=True) -> bool:
+    def add(self, statement: Interval, v=0, intersect=True, height=None) -> bool:
         if statement is None or statement in self._x_set:
             return False
 
@@ -28,8 +28,7 @@ class IntervalList(MutableSet):
         # if new statement envelops interval with less width and more height and weaker quality,
         # we can remove the old one
         for iv in enveloping:
-            if is_stronger_as(statement.quality, iv.quality) and \
-                    ((statement.begin_other >= iv.begin_other and statement.end_other <= iv.end_other)):
+            if statement.stronger_as(iv):
                      #or (height is not None and height[0] <= statement.begin_other and height[
                      #           1] >= statement.end_other)):
                 # remove old interval (not needed anymore)
@@ -39,8 +38,7 @@ class IntervalList(MutableSet):
                     print(f"=== removed interval -{iv}- for stronger interval -{statement}- ===")
 
         for iv in enveloped_by:
-            if is_stronger_as(iv.quality, statement.quality) and \
-                    (iv.begin_other >= statement.begin_other and iv.end_other <= statement.end_other):
+            if iv.stronger_as(statement):
                      #or (height is not None and height[0] >= intervallist.begin_other and height[
                      #           1] <= intervallist.end_other)):
                 if 2 <= v <= 3:

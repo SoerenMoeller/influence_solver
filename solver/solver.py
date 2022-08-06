@@ -6,14 +6,13 @@ from intervallist.interval_list import IntervalList
 from plotter.plotter import plot_statements, show_plot
 from .dependency_graph import DependencyGraph
 from .rules import *
-from .util import add_to_tree
 
 # TODO: Reflexive rule, Add reflexive statements?, Consistency?
 # TODO: Höhe null -> Konstant / ARB rausschmeißen
 
 class Solver:
     _intervals: dict[tuple] = {}
-    _verbose: int = 1
+    _verbose: int = 4
     _dependency_graph: DependencyGraph = DependencyGraph()
     _tmp_intervals: dict[tuple, set] = {}
 
@@ -205,6 +204,7 @@ class Solver:
         # filter needed height
         height_tree: IntervalList = IntervalList([iv for iv in model_bc.all_intervals()
                                                   if iv.begin_other >= height[0] and iv.end_other <= height[1]])
+        print("height")
 
         # check which ranges on x match the needed height
         sorted_ivs: list[Interval] = height_tree.all_intervals()
@@ -215,19 +215,24 @@ class Solver:
                 continue
             x_union.append([sorted_ivs[i].begin, sorted_ivs[i].end])
 
+
         intervals: set[Interval] = set()
         for x_range in x_union:
             intervals.update(model_ab.envelop_y(x_range[0], x_range[1]))
 
+        print("union")
+        print(len(intervals))
+        i = 0
         for interval in intervals:
             overlapping: list[Interval] = height_tree.overlap_x(interval.begin, interval.end)
             overlapping = self._strengthen_interval_width(overlapping, interval.begin, interval.end)
-
+            print(i)
             for overlapped_interval in overlapping:
                 rule: Interval = transitivity(interval.turn_interval(), overlapped_interval)
-                added: bool = add_to_tree(self._intervals[(a, c)], rule, self._verbose, height)
+                added: bool = self._intervals[(a, c)].add(rule, height)
                 if added:
                     self._dependency_graph.add(rule)
+            i +=1
 
     def _strengthen_interval_width(self, sorted_ivs: list[Interval], start: float, end: float) \
             -> list[Interval]:
@@ -247,7 +252,8 @@ class Solver:
                 continue
 
             result = interval_join(all_intervals[i], all_intervals[i + offset])
-            if result is not None:                              # NOT IN MODEL!, check if result is good?
+            if result is not None and len([iv for iv in all_intervals if iv.stronger_as(result)]) == 0:                              # NOT IN MODEL!, check if result is good?
+                all_intervals -= [iv for iv in all_intervals if result.stronger_as(iv)]
                 bisect.insort_left(all_intervals, result)       # TODO: give index?
 
                 continue
@@ -273,7 +279,8 @@ class Solver:
                 if index + i < len(all_intervals) and interval.distance_to(all_intervals[index + i]) == 0:
                     result = interval_join(interval, all_intervals[index + i])
 
-                    if result is not None:      # TODO: check if good
+                    if result is not None and len([iv for iv in all_intervals if iv.stronger_as(result)]) == 0:      # TODO: check if good
+                        all_intervals -= [iv for iv in all_intervals if result.stronger_as(iv)]
                         bisect.insort_left(all_intervals, result)
                         match_start.append(result)
                     continue
