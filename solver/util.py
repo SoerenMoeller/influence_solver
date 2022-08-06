@@ -58,6 +58,8 @@ def is_stronger_as(quality_a: str, quality_b: str) -> bool:
 
 
 def add_to_tree(model: tuple[IntervalTree, IntervalTree], statement: Interval, v=0, height=None) -> bool:
+
+    """
     if statement is None:
         return False
 
@@ -86,14 +88,15 @@ def add_to_tree(model: tuple[IntervalTree, IntervalTree], statement: Interval, v
 
             return True
 
-    for interval in enveloped_by:
-        if is_stronger_as(interval.quality, statement.quality) and \
-                (interval.begin_other >= statement.begin_other and interval.end_other <= statement.end_other
-                 or (height is not None and height[0] >= interval.begin_other and height[1] <= interval.end_other)):
+    for intervallist in enveloped_by:
+        if is_stronger_as(intervallist.quality, statement.quality) and \
+                (intervallist.begin_other >= statement.begin_other and intervallist.end_other <= statement.end_other
+                 or (height is not None and height[0] >= intervallist.begin_other and height[1] <= intervallist.end_other)):
             if 2 <= v <= 3:
-                print(f"=== did not include interval -{statement}- because of stronger interval -{interval}- ===")
+                print(f"=== did not include intervallist -{statement}- because of stronger intervallist -{intervallist}- ===")
             return False
 
     model[0].add(statement)
     model[1].add(statement.turn_interval())
     return True
+    """

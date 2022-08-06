@@ -2,6 +2,7 @@ import bisect
 import time
 from collections import deque
 
+from intervallist.interval_list import IntervalList
 from intervaltree_custom.intervaltree import IntervalTree
 from plotter.plotter import plot_statements, show_plot
 from .dependency_graph import DependencyGraph
@@ -46,14 +47,10 @@ class Solver:
 
         selector: tuple[str, str] = (influencing, influenced)
         if selector not in self._intervals:
-            tree_x: IntervalTree = IntervalTree()
-            tree_y: IntervalTree = IntervalTree()
-            self._intervals[selector] = (tree_x, tree_y)
-
+            self._intervals[selector] = IntervalList()
             self._tmp_intervals[selector] = set()
 
         interval: Interval = Interval(interval_x[0], interval_x[1], quality, interval_y[0], interval_y[1])
-
         self._tmp_intervals[selector].add(interval)
 
     def _add_multiple_intervals(self, intervals: list[tuple]):
@@ -62,22 +59,25 @@ class Solver:
 
     def solve(self, statement: tuple) -> bool:
         adding_time_start: float = time.time()
-        for key in self._tmp_intervals:
+
+        influencing: str = statement[0]
+        influenced: str = statement[4]
+        quality: str = statement[2]
+        interval_x: tuple[float, float] = statement[1]
+        interval_y: tuple[float, float] = statement[3]
+        order: list = self._dependency_graph.setup(influencing, influenced)
+
+        keys: set[tuple] = {key for key in self._tmp_intervals if key[0] in order and key[1] in order}
+        for key in keys:
             model = self._intervals[key]
             for iv in self._tmp_intervals[key]:
                 add_to_tree(model, iv, self._verbose)
         adding_time: float = time.time() - adding_time_start
 
         solve_time_start: float = time.time()
-        influencing: str = statement[0]
-        influenced: str = statement[4]
-        quality: str = statement[2]
-        interval_x: tuple[float, float] = statement[1]
-        interval_y: tuple[float, float] = statement[3]
         if self._verbose >= 3:
             plot_statements(self._intervals, list(self._intervals.keys()), statement)
         start_amount: int = self._length()
-        order: list = self._dependency_graph.setup(influencing, influenced)
 
         if not (influencing, influenced) in self._intervals:
             self._intervals[(influencing, influenced)] = (IntervalTree(), IntervalTree())
