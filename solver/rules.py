@@ -1,5 +1,5 @@
 from typing import Union
-from intervaltree_custom.intervaltree import Interval
+from intervallist.interval import Interval
 from .util import quality_add, min_quality, quality_times, is_stronger_as
 from .constants import *
 
@@ -58,7 +58,7 @@ def interval_strength_left(interval_a: Interval, interval_b: Interval) -> Union[
 
 def interval_strength(interval_a: Interval, interval_b: Interval) -> Union[Interval, None]:
     if not (interval_a.overlaps(interval_b) and interval_a.turn_interval().overlaps(interval_b.turn_interval())) \
-            or interval_a.quality != interval_b.quality or interval_a == interval_b:
+            or interval_a == interval_b:
         return None
 
     x_start: float = max(interval_a.begin, interval_b.begin)
@@ -78,7 +78,7 @@ def transitivity(interval_a: Interval, interval_b: Interval) -> Union[Interval, 
     return Interval(interval_a.begin, interval_a.end, quality, interval_b.begin_other, interval_b.end_other)
 
 
-def rule_fact(statement: tuple, area: set[Interval]) -> bool:
+def rule_fact(statement: tuple, area: list[Interval]) -> bool:
     quality: str = statement[2]
     interval_x: tuple[float, float] = statement[1]
     interval_y: tuple[float, float] = statement[3]

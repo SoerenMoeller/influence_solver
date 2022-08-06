@@ -13,6 +13,7 @@ Changed:
 - Changed copy
 - Changed __cmp__
 """
+from solver.constants import QUALITY_CONS
 
 """
 intervaltree: A mutable, self-balancing intervallist tree for Python 2 and 3.
@@ -41,7 +42,7 @@ from collections import namedtuple
 
 # noinspection PyBroadException
 class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_other', 'end_other'])):
-    __slots__ = ()  # Saves memory, avoiding the need to create __dict__ for each intervallist
+    __slots__ = ()  # Saves memory, avoiding the need to create __dict__ for each interval
 
     def __new__(cls, begin, end, quality, begin_other, end_other):
         return super(Interval, cls).__new__(cls, begin, end, quality, begin_other, end_other)

@@ -1,7 +1,6 @@
 from typing import Union
 
-from intervaltree_custom.interval import Interval
-from intervaltree_custom.intervaltree import IntervalTree
+from intervallist.interval import Interval
 from .constants import *
 
 
@@ -57,7 +56,7 @@ def is_stronger_as(quality_a: str, quality_b: str) -> bool:
         assert False, f"Tried to strengthen unknown quality pair: {quality_a}, {quality_b}"
 
 
-def add_to_tree(model: tuple[IntervalTree, IntervalTree], statement: Interval, v=0, height=None) -> bool:
+def add_to_tree(model: tuple, statement: Interval, v=0, height=None) -> bool:
 
     """
     if statement is None:

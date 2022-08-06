@@ -105,15 +105,15 @@ def main():
     }
     statement_3: tuple = ("a", (1, 2), QUALITY_MONO, (1, 2), "c")
 
-    #solver: Solver = Solver(current_model)
-    #result: bool = solver.solve(current_model_statements[3])
+    solver: Solver = Solver(current_model)
+    result: bool = solver.solve(current_model_statements[3])
 
-    iv_list: IntervalList = IntervalList()
-    iv_list.add(Interval(0, 1, QUALITY_CONS, 0, 0))
-    iv_list.add(Interval(1, 3, QUALITY_CONS, 0, 0))
-    iv_list.add(Interval(1.7, 2, QUALITY_CONS, 0, 0))
+    #iv_list: IntervalList = IntervalList()
+    #iv_list.add(Interval(0, 1, QUALITY_CONS, 0, 0))
+    #iv_list.add(Interval(1, 3, QUALITY_CONS, 0, 0))
+    #iv_list.add(Interval(1.7, 2, QUALITY_CONS, 0, 0))
 
-    print(iv_list.envelop_x(1, 2))
+    #print(iv_list.envelop_x(1, 2))
     #print(iv_list.get_intervals(iv_list.overlap(2, 2)))
 
     """ testing forked version
