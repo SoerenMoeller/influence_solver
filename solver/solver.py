@@ -13,7 +13,8 @@ from .util import add_to_tree
 
 class Solver:
     _intervals: dict[tuple] = {}
-    _verbose: int = 1
+    _tmp_intervals: dict[tuple, set] = {}
+    _verbose: int = 4
     _dependency_graph: DependencyGraph = DependencyGraph()
 
     def __init__(self, intervals=None):
@@ -48,10 +49,12 @@ class Solver:
             tree_x: IntervalTree = IntervalTree()
             tree_y: IntervalTree = IntervalTree()
             self._intervals[selector] = (tree_x, tree_y)
+            self._tmp_intervals[selector] = set()
 
         model: tuple = self._intervals[selector]
         interval: Interval = Interval(interval_x[0], interval_x[1], quality, interval_y[0], interval_y[1])
-        add_to_tree(model, interval, self._verbose)
+        self._tmp_intervals[selector].add(interval)
+        #add_to_tree(model, interval, self._verbose)
 
     def _add_multiple_intervals(self, intervals: list[tuple]):
         for interval in intervals:
@@ -64,6 +67,12 @@ class Solver:
         quality: str = statement[2]
         interval_x: tuple[float, float] = statement[1]
         interval_y: tuple[float, float] = statement[3]
+
+        for key in self._tmp_intervals:
+            model = self._intervals[key]
+            for iv in self._tmp_intervals[key]:
+                add_to_tree(model, iv, self._verbose)
+
         if self._verbose >= 3:
             plot_statements(self._intervals, list(self._intervals.keys()), statement)
         start_amount: int = self._length()
