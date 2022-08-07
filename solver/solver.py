@@ -12,7 +12,7 @@ from .rules import *
 
 class Solver:
     _intervals: dict[tuple] = {}
-    _verbose: int = 1
+    _verbose: int = 4
     _dependency_graph: DependencyGraph = DependencyGraph()
     _tmp_intervals: dict[tuple, set] = {}
 
@@ -86,6 +86,7 @@ class Solver:
         transitive_time_start: float = time.time()
         self._build_transitive_cover(order, statement)
         transitive_time: float = time.time() - transitive_time_start
+        print(len(self))
 
         # get all overlapping
         overlaps_x: list[Interval] = model.overlap_x(interval_x[0], interval_x[1])
@@ -124,8 +125,10 @@ class Solver:
 
         # build the widest intervals in the affected area
         sorted_area: list[Interval] = model.overlap_x(interval_x[0], interval_x[1])
+        print(sorted_area == sorted(sorted_area))
         sorted_area = model.strengthen_interval_width(sorted_area, interval_x[0], interval_x[1])
         tube_time: float = time.time() - tube_time_start
+
 
         result: bool = rule_fact(statement, sorted_area)
         solve_time: float = time.time() - solve_time_start

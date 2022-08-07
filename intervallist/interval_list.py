@@ -6,6 +6,7 @@ from typing import Iterator
 from intervallist.interval import Interval
 from solver.constants import QUALITY_CONS
 from solver.rules import interval_strength, interval_strength_left, interval_strength_right, interval_join
+from solver.util import is_stronger_as
 
 
 class IntervalList(MutableSet):
@@ -23,18 +24,21 @@ class IntervalList(MutableSet):
         if statement is None or statement in self._x_set:  # TODO: optimize
             return False
 
-        if statement.begin_other == statement.end_other:
-            statement = Interval(statement.begin, statement.end, QUALITY_CONS,
-                                 statement.begin_other, statement.end_other)
+        #if statement.begin_other == statement.end_other:
+        #    statement = Interval(statement.begin, statement.end, QUALITY_CONS,
+        #                         statement.begin_other, statement.end_other)
 
         overlapping: list[Interval] = self.overlap_x_iv(statement)
-        enveloping: list[Interval] = IntervalList.get_enveloping_overlap(self._x_set, statement)
-        enveloped_by: list[Interval] = IntervalList.get_enveloped_by_overlap(self._x_set, statement)
+        enveloping: list[Interval] = [i for i in overlapping if i.begin >= statement.begin and i.end <= statement.end]#IntervalList.get_enveloping_overlap(self._x_set, statement)
+        enveloped_by: list[Interval] = [i for i in overlapping if i.begin <= statement.begin and i.end >= statement.end]#IntervalList.get_enveloped_by_overlap(self._x_set, statement)
 
         # if new statement envelops interval with less width and more height and weaker quality,
         # we can remove the old one
         for iv in enveloping:
-            if statement.stronger_as(iv, height):
+            if is_stronger_as(statement.quality, iv.quality) and \
+                    ((statement.begin_other >= iv.begin_other and statement.end_other <= iv.end_other)
+                     or (height is not None and height[0] <= statement.begin_other and height[
+                                1] >= statement.end_other)):
                 # remove old interval (not needed anymore)
                 self.remove(iv)
 
@@ -46,7 +50,9 @@ class IntervalList(MutableSet):
                 return True
 
         for iv in enveloped_by:
-            if iv.stronger_as(statement, height):
+            if is_stronger_as(iv.quality, statement.quality) and \
+                    (iv.begin_other >= statement.begin_other and iv.end_other <= statement.end_other
+                     or (height is not None and height[0] >= iv.begin_other and height[1] <= iv.end_other)):
                 if 2 <= self._verbose <= 3:
                     print(f"=== did not include interval -{statement}- because of stronger interval -{iv}- ===")
                 return False
@@ -277,7 +283,7 @@ class IntervalList(MutableSet):
                         match_start.append(result)
                     continue
                 break
-            if not (interval.begin <= start and interval.end >= end):
+            if not (interval.begin <= start and interval.end >= end) and interval in all_intervals:
                 all_intervals.remove(interval)
 
         border: int = len(all_intervals)

@@ -106,7 +106,7 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
             i0 = max(self.begin, begin)
             i1 = min(self.end, end)
             return i1 - i0
-        # assume the type is intervallist, in other cases, an exception will be thrown
+        # assume the type is interval, in other cases, an exception will be thrown
         i0 = max(self.begin, begin.begin)
         i1 = min(self.end, begin.end)
         return i1 - i0

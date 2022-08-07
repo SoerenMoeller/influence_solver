@@ -30,7 +30,7 @@ def plot_statements(intervals: dict, influences: list[tuple[str, str]], statemen
             continue
 
         # setup axis
-        min_x, max_x, min_y, max_y = statements[0].begin, statements[-1].end, turned[0].begin, turned[-1].end
+        min_x, max_x, min_y, max_y = statements[0].begin, statements[-1].end, turned[0].begin - 0.2, turned[-1].end + 0.1
         axis[index].axis([min_x, max_x, min_y, max_y])
         axis[index].set(xlabel=influence[0], ylabel=influence[1])
 

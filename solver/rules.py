@@ -91,6 +91,7 @@ def rule_fact(statement: tuple, area: list[Interval]) -> bool:
 
     area = {iv for iv in area if iv.begin <= interval_x[0] and iv.end >= interval_x[1]
             and iv.begin_other >= interval_y[0] and iv.end_other <= interval_y[1]}
+    print(area)
 
     for sub_interval in area:
         quality_sub: str = sub_interval.quality
