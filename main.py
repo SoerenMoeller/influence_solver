@@ -110,11 +110,8 @@ def main():
 
     #iv_list: IntervalList = IntervalList()
     #iv_list.add(Interval(0, 1, QUALITY_CONS, 0, 0))
-    #iv_list.add(Interval(1, 3, QUALITY_CONS, 0, 0))
-    #iv_list.add(Interval(1.7, 2, QUALITY_CONS, 0, 0))
 
-    #print(iv_list.envelop_x(1, 2))
-    #print(iv_list.get_intervals(iv_list.overlap(2, 2)))
+    #print(iv_list._overlap([Interval(0, 1, QUALITY_CONS, 0, 0), Interval(3, 3, QUALITY_CONS, 0, 0)], 2, 2))
 
     """ testing forked version
     x = "x"
