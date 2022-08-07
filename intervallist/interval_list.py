@@ -53,7 +53,8 @@ class IntervalList(MutableSet):
         bisect.insort_left(self._y_set, statement.turn_interval())
 
         # build all intersections
-        if not intersect:
+        return True
+        if not intersect or True:
             return True
         for iv in overlapping:
             self.add(interval_strength(statement, iv), intersect=False)

@@ -67,7 +67,7 @@ class Solver:
 
         used_variables: list[str] = order + [influencing, influenced]
         keys: set[tuple] = {key for key in self._tmp_intervals if key[0] in used_variables and key[1] in used_variables}
-        for key in keys:
+        for key in self._tmp_intervals:
             model = self._intervals[key]
             for iv in self._tmp_intervals[key]:
                 model.add(iv)
@@ -219,7 +219,7 @@ class Solver:
             overlapping = self._strengthen_interval_width(overlapping, interval.begin, interval.end)
             for overlapped_interval in overlapping:
                 rule: Interval = transitivity(interval.turn_interval(), overlapped_interval)
-                added: bool = self._intervals[(a, c)].add(rule, height)
+                added: bool = self._intervals[(a, c)].add(rule, height=height)
                 if added:
                     self._dependency_graph.add(rule)
 
