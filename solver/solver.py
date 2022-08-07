@@ -72,7 +72,6 @@ class Solver:
             for iv in self._tmp_intervals[key]:
                 model.add(iv)
         adding_time: float = time.time() - adding_time_start
-        print(adding_time)
 
         solve_time_start: float = time.time()
         if self._verbose >= 3:
@@ -87,7 +86,6 @@ class Solver:
         transitive_time_start: float = time.time()
         self._build_transitive_cover(order, statement)
         transitive_time: float = time.time() - transitive_time_start
-        print("hi")
 
         # get all overlapping
         overlaps_x: list[Interval] = model.overlap_x(interval_x[0], interval_x[1])
@@ -186,12 +184,9 @@ class Solver:
             for pre in self._dependency_graph.get_pre(node):
                 model: IntervalList = self._intervals[(pre, node)]
                 model.strengthen_interval_height_sides()
-                print("hi")
                 self._build_transitives(pre, node, goal, statement)
-                print("hi")
 
                 self._dependency_graph.remove_node(node)
-            print("hi")
 
     def _build_transitives(self, a: str, b: str, c: str, statement: tuple):
         height: tuple[float, float] = statement[3]
@@ -204,7 +199,6 @@ class Solver:
         # filter needed height
         height_tree: IntervalList = IntervalList([iv for iv in model_bc.all_intervals()
                                                   if iv.begin_other >= height[0] and iv.end_other <= height[1]])
-        print("height")
 
         # check which ranges on x match the needed height
         sorted_ivs: list[Interval] = height_tree.all_intervals()
@@ -220,19 +214,14 @@ class Solver:
         for x_range in x_union:
             intervals.update(model_ab.envelop_y(x_range[0], x_range[1]))
 
-        print("union")
-        print(len(intervals))
-        i = 0
         for interval in intervals:
             overlapping: list[Interval] = height_tree.overlap_x(interval.begin, interval.end)
             overlapping = self._strengthen_interval_width(overlapping, interval.begin, interval.end)
-            print(i)
             for overlapped_interval in overlapping:
                 rule: Interval = transitivity(interval.turn_interval(), overlapped_interval)
                 added: bool = self._intervals[(a, c)].add(rule, height)
                 if added:
                     self._dependency_graph.add(rule)
-            i +=1
 
     def _strengthen_interval_width(self, sorted_ivs: list[Interval], start: float, end: float) \
             -> list[Interval]:

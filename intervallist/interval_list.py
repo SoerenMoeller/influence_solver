@@ -214,6 +214,9 @@ class IntervalList(MutableSet):
     def all_intervals(self):
         return self._x_set
 
+    def all_intervals_turned(self):
+        return self._y_set
+
 
 def _bisect_point(ivs: list, point: float) -> int:
     return bisect.bisect_left(ivs, Interval(point, point, QUALITY_CONS, 0, 0))

@@ -13,7 +13,6 @@ Changed:
 - Changed copy
 - Changed __cmp__
 """
-from solver.constants import QUALITY_CONS
 from solver.util import is_stronger_as
 
 """
@@ -63,7 +62,7 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
         if end is None:
             return self.enveloping(begin.begin, begin.end)
         return begin >= self.begin and end <= self.end
-    
+
     def overlaps(self, begin, end=None):
         """
         Whether the intervallist overlaps the given point, range or Interval.
@@ -86,7 +85,7 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
 
     def stronger_as(self, iv):
         return is_stronger_as(self.quality, iv.quality) and \
-            self.begin_other >= iv.begin_other and self.end_other <= iv.end_other
+               self.begin_other >= iv.begin_other and self.end_other <= iv.end_other
 
     def overlap_size(self, begin, end=None):
         """
@@ -119,7 +118,7 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
         :rtype: bool
         """
         return self.begin <= p <= self.end
-    
+
     def range_matches(self, other):
         """
         Whether the begins equal and the ends equal. Compare __eq__().
@@ -128,10 +127,10 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
         :rtype: bool
         """
         return (
-            self.begin == other.begin and 
-            self.end == other.end
+                self.begin == other.begin and
+                self.end == other.end
         )
-    
+
     def contains_interval(self, other):
         """
         Whether other is contained in this Interval.
@@ -140,10 +139,10 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
         :rtype: bool
         """
         return (
-            self.begin <= other.begin and
-            self.end >= other.end
+                self.begin <= other.begin and
+                self.end >= other.end
         )
-    
+
     def distance_to(self, other):
         """
         Returns the size of the gap between intervals, or 0 
@@ -200,11 +199,11 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
         :rtype: bool
         """
         return (
-            self.begin == other.begin and
-            self.end == other.end and
-            self.quality == other.quality and
-            self.begin_other == other.begin_other and
-            self.end_other == other.end_other
+                self.begin == other.begin and
+                self.end == other.end and
+                self.quality == other.quality and
+                self.begin_other == other.begin_other and
+                self.end_other == other.end_other
         )
 
     def __cmp__(self, other):
@@ -328,7 +327,7 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
         :rtype: tuple
         """
         return self.begin, self.end, self.quality, self.begin_other, self.end_other
-    
+
     def __repr__(self):
         """
         Executable string representation of this Interval.
@@ -358,7 +357,7 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
         :rtype: Interval
         """
         return Interval(self.begin, self.end, self.quality, self.begin_other, self.end_other)
-    
+
     def __reduce__(self):
         """
         For pickle-ing.

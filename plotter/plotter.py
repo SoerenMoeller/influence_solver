@@ -23,8 +23,8 @@ def plot_statements(intervals: dict, influences: list[tuple[str, str]], statemen
         if influence not in intervals:
             continue
 
-        statements: list[Interval] = sorted(intervals[influence].all_intervals())
-        turned: list[Interval] = sorted(intervals[influence].all_intervals())
+        statements: list[Interval] = intervals[influence].all_intervals()
+        turned: list[Interval] = intervals[influence].all_intervals_turned()
 
         if len(statements) == 0:
             continue
