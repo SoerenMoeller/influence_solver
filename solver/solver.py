@@ -12,7 +12,7 @@ from .rules import *
 
 class Solver:
     _intervals: dict[tuple] = {}
-    _verbose: int = 4
+    _verbose: int = 1
     _dependency_graph: DependencyGraph = DependencyGraph()
     _tmp_intervals: dict[tuple, set] = {}
 
@@ -67,7 +67,7 @@ class Solver:
 
         used_variables: list[str] = order + [influencing, influenced]
         keys: set[tuple] = {key for key in self._tmp_intervals if key[0] in used_variables and key[1] in used_variables}
-        for key in self._tmp_intervals:
+        for key in keys:
             model = self._intervals[key]
             for iv in self._tmp_intervals[key]:
                 model.add(iv)
@@ -76,7 +76,7 @@ class Solver:
         solve_time_start: float = time.time()
         if self._verbose >= 3:
             plot_statements(self._intervals, list(self._intervals.keys()), statement)
-        start_amount: int = self._length()
+        start_amount: int = len(self)
 
         if not (influencing, influenced) in self._intervals:
             self._intervals[(influencing, influenced)] = IntervalList()
@@ -117,13 +117,14 @@ class Solver:
 
         # propagate (here, left and right is only needed once)
         tube_time_start: float = time.time()
+        model.strengthen_interval_height()
         model.strengthen_interval_height_sides()
         #model.strengthen_interval_height_sides(sorted_tube)
         #model.strengthen_interval_height_side_right(sorted_tube)
 
         # build the widest intervals in the affected area
         sorted_area: list[Interval] = model.overlap_x(interval_x[0], interval_x[1])
-        sorted_area = self._strengthen_interval_width(sorted_area, interval_x[0], interval_x[1])
+        sorted_area = model.strengthen_interval_width(sorted_area, interval_x[0], interval_x[1])
         tube_time: float = time.time() - tube_time_start
 
         result: bool = rule_fact(statement, sorted_area)
@@ -153,7 +154,7 @@ class Solver:
             print("=" * max_length + "\n")
 
             print(f"Started with {amount} amount of statements in the model")
-            print(f"Finished with {self._length()} amount of statements in the model\n")
+            print(f"Finished with {len(self)} amount of statements in the model\n")
 
             print(f"Statement: -{statement}-", end=" ")
             print("can be solved" if result else "is not solvable")
@@ -183,6 +184,7 @@ class Solver:
         for node in order:
             for pre in self._dependency_graph.get_pre(node):
                 model: IntervalList = self._intervals[(pre, node)]
+                model.strengthen_interval_height()
                 model.strengthen_interval_height_sides()
                 self._build_transitives(pre, node, goal, statement)
 
@@ -209,85 +211,23 @@ class Solver:
                 continue
             x_union.append([sorted_ivs[i].begin, sorted_ivs[i].end])
 
-
         intervals: set[Interval] = set()
         for x_range in x_union:
             intervals.update(model_ab.envelop_y(x_range[0], x_range[1]))
 
         for interval in intervals:
             overlapping: list[Interval] = height_tree.overlap_x(interval.begin, interval.end)
-            overlapping = self._strengthen_interval_width(overlapping, interval.begin, interval.end)
+            overlapping = model_bc.strengthen_interval_width(overlapping, interval.begin, interval.end)
             for overlapped_interval in overlapping:
                 rule: Interval = transitivity(interval.turn_interval(), overlapped_interval)
                 added: bool = self._intervals[(a, c)].add(rule, height=height)
                 if added:
                     self._dependency_graph.add(rule)
 
-    def _strengthen_interval_width(self, sorted_ivs: list[Interval], start: float, end: float) \
-            -> list[Interval]:
-        return self._strengthen_interval_width_short(sorted_ivs, start) if len(sorted_ivs) < 20 else \
-            self._strengthen_interval_width_long(sorted_ivs, start, end)
-
-    def _strengthen_interval_width_short(self, all_intervals: list[Interval], start: float) \
-            -> list[Interval]:
-        i: int = 0
-        offset: int = 1
-        while i < len(all_intervals):
-            if not all_intervals[i].contains_point(start):
-                return all_intervals[:i]
-            if not i + offset < len(all_intervals) or all_intervals[i].distance_to(all_intervals[i + offset]) > 0:
-                i += 1
-                offset = 1
-                continue
-
-            result = interval_join(all_intervals[i], all_intervals[i + offset])
-            if result is not None and len([iv for iv in all_intervals if iv.stronger_as(result)]) == 0:                              # NOT IN MODEL!, check if result is good?
-                all_intervals -= [iv for iv in all_intervals if result.stronger_as(iv)]
-                bisect.insort_left(all_intervals, result)       # TODO: give index?
-
-                continue
-            offset += 1
-
-        return all_intervals
-
-    def _strengthen_interval_width_long(self, sorted_ivs: list[Interval], start: float, end: float) \
-            -> list[Interval]:
-        all_intervals: list[Interval] = sorted_ivs
-
-        match_start: deque = deque()
-        for iv in all_intervals:
-            if iv.contains_point(start):
-                match_start.append(iv)
-                continue
-            break
-
-        while len(match_start) > 0:
-            interval: Interval = match_start.popleft()
-            index: int = bisect.bisect_left(all_intervals, interval)
-            for i in range(len(all_intervals) - index):
-                if index + i < len(all_intervals) and interval.distance_to(all_intervals[index + i]) == 0:
-                    result = interval_join(interval, all_intervals[index + i])
-
-                    if result is not None and len([iv for iv in all_intervals if iv.stronger_as(result)]) == 0:      # TODO: check if good
-                        all_intervals -= [iv for iv in all_intervals if result.stronger_as(iv)]
-                        bisect.insort_left(all_intervals, result)
-                        match_start.append(result)
-                    continue
-                break
-            if not (interval.begin <= start and interval.end >= end):
-                all_intervals.remove(interval)
-
-        border: int = len(all_intervals)
-        for i in range(len(all_intervals)):
-            if not all_intervals[i].contains_point(start):
-                border = i
-                break
-        return all_intervals[:border]
-
-    def _length(self):
+    def __len__(self):
         length: int = 0
         for model in self._intervals:
-            length += len(self._intervals[model].all_intervals())
+            length += len(self._intervals[model])
         return length
 
     def __str__(self):

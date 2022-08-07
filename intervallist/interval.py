@@ -83,9 +83,10 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
         except:
             return self.contains_point(begin)
 
-    def stronger_as(self, iv):
+    def stronger_as(self, iv, height=None):
         return is_stronger_as(self.quality, iv.quality) and \
-               self.begin_other >= iv.begin_other and self.end_other <= iv.end_other
+                (self.begin_other >= iv.begin_other and self.end_other <= iv.end_other
+                 or (height is not None and height[0] >= self.begin_other and height[1] <= self.end_other))
 
     def overlap_size(self, begin, end=None):
         """

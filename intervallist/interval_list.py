@@ -1,25 +1,31 @@
 import bisect
+from collections import deque
 from collections.abc import MutableSet
 from typing import Iterator
 
 from intervallist.interval import Interval
 from solver.constants import QUALITY_CONS
-from solver.rules import interval_strength, interval_strength_left, interval_strength_right
-from solver.util import is_stronger_as
+from solver.rules import interval_strength, interval_strength_left, interval_strength_right, interval_join
 
 
 class IntervalList(MutableSet):
-    _x_set: list[Interval] = []
-    _y_set: list[Interval] = []
-    _verbose: int = 1
+    def __init__(self, ivs=None):
+        self._x_set: list[Interval] = []
+        self._y_set: list[Interval] = []
+        self._verbose: int = 1
 
-    def __init__(self, ivs=[]):
+        if ivs is None:
+            ivs = []
         for iv in ivs:
             self.add(iv)
 
-    def add(self, statement: Interval, v=0, intersect=True, height=None) -> bool:
-        if statement is None or statement in self._x_set:
+    def add(self, statement: Interval, intersect=False, height=None) -> bool:
+        if statement is None or statement in self._x_set:  # TODO: optimize
             return False
+
+        if statement.begin_other == statement.end_other:
+            statement = Interval(statement.begin, statement.end, QUALITY_CONS,
+                                 statement.begin_other, statement.end_other)
 
         overlapping: list[Interval] = self.overlap_x_iv(statement)
         enveloping: list[Interval] = IntervalList.get_enveloping_overlap(self._x_set, statement)
@@ -28,38 +34,50 @@ class IntervalList(MutableSet):
         # if new statement envelops interval with less width and more height and weaker quality,
         # we can remove the old one
         for iv in enveloping:
-            if statement.stronger_as(iv):
-                     #or (height is not None and height[0] <= statement.begin_other and height[
-                     #           1] >= statement.end_other)):
+            if statement.stronger_as(iv, height):
                 # remove old interval (not needed anymore)
                 self.remove(iv)
 
-                if 2 <= v <= 3:
+                bisect.insort_left(self._x_set, statement)
+                bisect.insort_left(self._y_set, statement.turn_interval())
+
+                if 2 <= self._verbose <= 3:
                     print(f"=== removed interval -{iv}- for stronger interval -{statement}- ===")
+                return True
 
         for iv in enveloped_by:
-            if iv.stronger_as(statement):
-                     #or (height is not None and height[0] >= intervallist.begin_other and height[
-                     #           1] <= intervallist.end_other)):
-                if 2 <= v <= 3:
-                    print(
-                        f"=== did not include interval -{statement}- because of stronger interval -{iv}- ===")
+            if iv.stronger_as(statement, height):
+                if 2 <= self._verbose <= 3:
+                    print(f"=== did not include interval -{statement}- because of stronger interval -{iv}- ===")
                 return False
 
-        if statement.begin_other == statement.end_other:
-            statement = Interval(statement.begin, statement.end, QUALITY_CONS,
-                                 statement.begin_other, statement.end_other)
         bisect.insort_left(self._x_set, statement)
         bisect.insort_left(self._y_set, statement.turn_interval())
 
         # build all intersections
-        return True
-        if not intersect or True:
+        if not intersect:
             return True
         for iv in overlapping:
             self.add(interval_strength(statement, iv), intersect=False)
 
         return True
+
+    def strengthen_interval_height(self,):
+        i: int = 0
+        while i < len(self._x_set):
+            updated: bool = False
+
+            offset: int = 1
+            while i + offset < len(self._x_set) and self._x_set[i].distance_to(self._x_set[i + offset]) == 0:
+                result = interval_strength(self._x_set[i], self._x_set[i + offset])
+                added: bool = self.add(result)
+                if added:
+                    updated = True
+                    continue
+                offset += 1
+
+            if not updated:
+                i += 1
 
     def remove(self, iv: Interval):
         self._x_set.remove(iv)
@@ -92,26 +110,27 @@ class IntervalList(MutableSet):
 
     @staticmethod
     def _overlap(ivs: list, begin: float, end: float) -> list[Interval]:
+        return sorted({iv for iv in ivs if iv.overlaps(begin, end)})
         index: int = _bisect_point(ivs, begin)
         if index == len(ivs) and index > 0:
-            index -= 1
-
-        if not (len(ivs) > 0 and ivs[index].overlaps(begin, end)):
             return []
+        x = []
+        if not (len(ivs) > 0 and ivs[index].overlaps(begin, end)):
+            lower_border: int = index
+            for i in range(index - 1, -1, -1):
+                if not ivs[i].overlaps(begin, end):
+                    break
+                x.append(ivs[i])
+                lower_border = i
 
         upper_border: int = index
         for i in range(index + 1, len(ivs)):
             if not ivs[i].overlaps(begin, end):
                 break
+            x.append(ivs[i])
             upper_border = i
 
-        lower_border: int = index
-        for i in range(index - 1, -1, -1):
-            if not ivs[i].overlaps(begin, end):
-                break
-            lower_border = i
-
-        return ivs[lower_border:upper_border + 1]
+        return sorted(x)
 
     def envelop_x_iv(self, iv: Interval) -> list[Interval]:
         return IntervalList._envelop(self._x_set, iv.begin, iv.end)
@@ -211,6 +230,62 @@ class IntervalList(MutableSet):
                     self.remove(self._x_set[i])
                     self.add(result)
             i += 1
+
+    def strengthen_interval_width(self, sorted_ivs: list[Interval], start: float, end: float) \
+            -> list[Interval]:
+        return self._strengthen_interval_width_short(sorted_ivs, start) if len(sorted_ivs) < 20 else \
+            self._strengthen_interval_width_long(sorted_ivs, start, end)
+
+    def _strengthen_interval_width_short(self, all_intervals: list[Interval], start: float) \
+            -> list[Interval]:
+        i: int = 0
+        offset: int = 1
+        while i < len(all_intervals):
+            if not all_intervals[i].contains_point(start):
+                return all_intervals[:i]
+            if not i + offset < len(all_intervals) or all_intervals[i].distance_to(all_intervals[i + offset]) > 0:
+                i += 1
+                offset = 1
+                continue
+
+            result = interval_join(all_intervals[i], all_intervals[i + offset])
+            added: bool = self.add(result)
+            if added:
+                continue
+            offset += 1
+
+        return all_intervals
+
+    def _strengthen_interval_width_long(self, all_intervals: list[Interval], start: float, end: float) \
+            -> list[Interval]:
+        match_start: deque = deque()
+        for iv in all_intervals:
+            if iv.contains_point(start):
+                match_start.append(iv)
+                continue
+            break
+
+        while len(match_start) > 0:
+            interval: Interval = match_start.popleft()
+            index: int = bisect.bisect_left(all_intervals, interval)
+            for i in range(len(all_intervals) - index):
+                if index + i < len(all_intervals) and interval.distance_to(all_intervals[index + i]) == 0:
+                    result = interval_join(interval, all_intervals[index + i])
+                    added: bool = self.add(result)
+
+                    if added:
+                        match_start.append(result)
+                    continue
+                break
+            if not (interval.begin <= start and interval.end >= end):
+                all_intervals.remove(interval)
+
+        border: int = len(all_intervals)
+        for i in range(len(all_intervals)):
+            if not all_intervals[i].contains_point(start):
+                border = i
+                break
+        return all_intervals[:border]
 
     def all_intervals(self):
         return self._x_set

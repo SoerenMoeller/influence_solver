@@ -34,6 +34,9 @@ def interval_strength_right(interval_a: Interval, interval_b: Interval) -> Union
     elif quality_a == QUALITY_ANTI and x < a < y:
         rule = Interval(interval_a.begin, interval_a.end, QUALITY_ANTI, a, y)
 
+    if rule is not None and interval_a.stronger_as(rule):
+        rule = None
+
     return rule
 
 
@@ -52,6 +55,9 @@ def interval_strength_left(interval_a: Interval, interval_b: Interval) -> Union[
         rule = Interval(interval_b.begin, interval_b.end, QUALITY_MONO, x, b)
     elif quality_b == QUALITY_ANTI and a < y < b:
         rule = Interval(interval_b.begin, interval_b.end, QUALITY_ANTI, a, y)
+
+    if rule is not None and interval_b.stronger_as(rule):
+        rule = None
 
     return rule
 
