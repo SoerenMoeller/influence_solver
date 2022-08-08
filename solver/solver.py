@@ -184,12 +184,15 @@ class Solver:
         for node in order:
             for pre in self._dependency_graph.get_pre(node):
                 model: IntervalList = self._intervals[(pre, node)]
+                print(len(model))
                 x = time.time()
                 model.strengthen_interval_height()
                 print(f"height: {time.time() - x}")
+                print(len(model))
                 x = time.time()
                 model.strengthen_interval_height_sides()
                 print(f"sides: {time.time() - x}")
+                print(len(model))
                 x = time.time()
                 self._build_transitives(pre, node, goal, statement)
                 print(f"trans: {time.time() - x}")
