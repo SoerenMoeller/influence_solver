@@ -24,14 +24,14 @@ class IntervalList(MutableSet):
     def add(self, statement: Interval, intersect=False, height=None) -> bool:
         if statement is None or statement in self._x_set:  # TODO: optimize
             return False
-        """
+
         if statement.begin_other == statement.end_other:
             statement = Interval(statement.begin, statement.end, QUALITY_CONS, statement.begin_other,
                                  statement.end_other)
 
         overlapping: list[Interval] = self.overlap_x_iv(statement)
-        enveloping: list[Interval] = IntervalList.get_enveloping_overlap(self._x_set, statement)
-        enveloped_by: list[Interval] = IntervalList.get_enveloped_by_overlap(self._x_set, statement)
+        enveloping: list[Interval] = IntervalList.get_enveloping_overlap(overlapping, statement)
+        enveloped_by: list[Interval] = IntervalList.get_enveloped_by_overlap(overlapping, statement)
 
         # if new statement envelops interval with less width and more height and weaker quality,
         # we can remove the old one
@@ -46,7 +46,6 @@ class IntervalList(MutableSet):
                 if 2 <= self._verbose <= 3:
                     print(f"=== removed interval -{iv}- for stronger interval -{statement}- ===")
 
-
         for iv in enveloped_by:
             if is_stronger_as(iv.quality, statement.quality) and \
                     (iv.begin_other >= statement.begin_other and iv.end_other <= statement.end_other
@@ -54,7 +53,7 @@ class IntervalList(MutableSet):
                 if 2 <= self._verbose <= 3:
                     print(f"=== did not include interval -{statement}- because of stronger interval -{iv}- ===")
                 return False
-        """
+
         bisect.insort_left(self._x_set, statement)
         bisect.insort_left(self._y_set, statement.turn_interval())
 
@@ -66,19 +65,21 @@ class IntervalList(MutableSet):
 
         return True
 
-    def strengthen_interval_height(self, ):
+    def strengthen_interval_height(self):
+        l = [Interval(iv.begin, iv.end, iv.quality, iv.begin_other, iv.end_other) for iv in self._x_set]
         i: int = 0
         x = 0
-        while i < len(self._x_set):
+        while i < len(l):
             updated: bool = False
 
             offset: int = 1
-            while i + offset < len(self._x_set) and self._x_set[i].distance_to(self._x_set[i + offset]) == 0:
-                result = interval_strength(self._x_set[i], self._x_set[i + offset])
+            while i + offset < len(l) and l[i].distance_to(l[i + offset]) == 0:
+                result = interval_strength(l[i], l[i + offset])
                 y = time.time()
                 added: bool = self.add(result)
                 x += (time.time() - y)
                 if added:
+                    bisect.insort_left(l, result)
                     updated = True
                     continue
                 offset += 1
