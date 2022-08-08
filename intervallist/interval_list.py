@@ -24,7 +24,7 @@ class IntervalList(MutableSet):
     def add(self, statement: Interval, intersect=False, height=None) -> bool:
         if statement is None or statement in self._x_set:  # TODO: optimize
             return False
-
+        """
         if statement.begin_other == statement.end_other:
             statement = Interval(statement.begin, statement.end, QUALITY_CONS, statement.begin_other,
                                  statement.end_other)
@@ -46,6 +46,7 @@ class IntervalList(MutableSet):
                 if 2 <= self._verbose <= 3:
                     print(f"=== removed interval -{iv}- for stronger interval -{statement}- ===")
 
+
         for iv in enveloped_by:
             if is_stronger_as(iv.quality, statement.quality) and \
                     (iv.begin_other >= statement.begin_other and iv.end_other <= statement.end_other
@@ -53,15 +54,15 @@ class IntervalList(MutableSet):
                 if 2 <= self._verbose <= 3:
                     print(f"=== did not include interval -{statement}- because of stronger interval -{iv}- ===")
                 return False
-
+        """
         bisect.insort_left(self._x_set, statement)
         bisect.insort_left(self._y_set, statement.turn_interval())
 
         # build all intersections
         if not intersect:
             return True
-        for iv in overlapping:
-            self.add(interval_strength(statement, iv), intersect=False)
+        #for iv in overlapping:
+        #    self.add(interval_strength(statement, iv), intersect=False)
 
         return True
 
