@@ -185,9 +185,15 @@ class Solver:
         for node in order:
             for pre in self._dependency_graph.get_pre(node):
                 model: IntervalList = self._intervals[(pre, node)]
+                x = time.time()
                 model.strengthen_interval_height()
+                print(f"height: {time.time() - x}")
+                x = time.time()
                 model.strengthen_interval_height_sides()
+                print(f"sides: {time.time() - x}")
+                x = time.time()
                 self._build_transitives(pre, node, goal, statement)
+                print(f"trans: {time.time() - x}")
 
                 self._dependency_graph.remove_node(node)
 
@@ -200,8 +206,10 @@ class Solver:
             self._intervals[(a, c)] = IntervalList
 
         # filter needed height
+        x = time.time()
         height_tree: IntervalList = IntervalList([iv for iv in model_bc.all_intervals()
                                                   if iv.begin_other >= height[0] and iv.end_other <= height[1]])
+        print(f"height tree: {time.time() - x}")
 
         # check which ranges on x match the needed height
         sorted_ivs: list[Interval] = height_tree.all_intervals()
@@ -216,14 +224,22 @@ class Solver:
         for x_range in x_union:
             intervals.update(model_ab.envelop_y(x_range[0], x_range[1]))
 
+        print(f"intervals: {len(intervals)}")
+        o = 0
+        x = 0
         for interval in intervals:
+            y = time.time()
             overlapping: list[Interval] = height_tree.overlap_x(interval.begin, interval.end)
             overlapping = model_bc.strengthen_interval_width(overlapping, interval.begin, interval.end)
+            x += (time.time() - y)
+            o += len(overlapping)
             for overlapped_interval in overlapping:
                 rule: Interval = transitivity(interval.turn_interval(), overlapped_interval)
                 added: bool = self._intervals[(a, c)].add(rule, height=height)
                 if added:
                     self._dependency_graph.add(rule)
+        print(f"overlapping: {o}")
+        print(f"width: {x}")
 
     def __len__(self):
         length: int = 0
