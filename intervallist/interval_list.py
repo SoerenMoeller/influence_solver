@@ -1,4 +1,5 @@
 import bisect
+import time
 from collections import deque
 from collections.abc import MutableSet
 from typing import Iterator
@@ -66,13 +67,16 @@ class IntervalList(MutableSet):
 
     def strengthen_interval_height(self, ):
         i: int = 0
+        x = 0
         while i < len(self._x_set):
             updated: bool = False
 
             offset: int = 1
             while i + offset < len(self._x_set) and self._x_set[i].distance_to(self._x_set[i + offset]) == 0:
                 result = interval_strength(self._x_set[i], self._x_set[i + offset])
+                y = time.time()
                 added: bool = self.add(result)
+                x += (time.time() - y)
                 if added:
                     updated = True
                     continue
@@ -80,6 +84,7 @@ class IntervalList(MutableSet):
 
             if not updated:
                 i += 1
+        print(f"adding: {x}")
 
     def remove(self, iv: Interval):
         self._x_set.remove(iv)
