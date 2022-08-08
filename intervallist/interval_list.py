@@ -188,8 +188,9 @@ class IntervalList(MutableSet):
                 if self._x_set[i].distance_to(self._x_set[i + offset]) > 0:
                     break
                 result = interval_strength_right(self._x_set[i], self._x_set[i + offset])
-                if result is not None:
-                    self._x_set[i] = result
+                added: bool = self.add(result)
+                if added:
+                    #self._x_set[i] = result
                     updated = True
 
             # left check
@@ -197,8 +198,9 @@ class IntervalList(MutableSet):
                 if self._x_set[i - offset].distance_to(self._x_set[i]) > 0:
                     break
                 result = interval_strength_left(self._x_set[i - offset], self._x_set[i])
-                if result is not None:
-                    self._x_set[i] = result
+                added: bool = self.add(result)
+                if added:
+                    #self._x_set[i] = result
                     updated = True
 
             if updated and i > 0:
@@ -213,8 +215,9 @@ class IntervalList(MutableSet):
                 if self._x_set[i - offset].distance_to(self._x_set[i]) > 0:
                     break
                 result = interval_strength_left(self._x_set[i - offset], self._x_set[i])
-                if result is not None:
-                    self._x_set[i] = result
+                self.add(result)
+                #if result is not None:
+                #    self._x_set[i] = result
             i -= 1
 
     # TODO: I assume no other intersects get created
@@ -225,8 +228,9 @@ class IntervalList(MutableSet):
                 if self._x_set[i].distance_to(self._x_set[i + offset]) > 0:
                     break
                 result = interval_strength_right(self._x_set[i], self._x_set[i + offset])
-                if result is not None:
-                    self._x_set[i] = result
+                self.add(result)
+                #if result is not None:
+                #    self._x_set[i] = result
             i += 1
 
     def strengthen_interval_height_side_left(self, sorted_ivs: list[Interval]):
