@@ -1,7 +1,5 @@
 import math
 
-from intervallist.interval import Interval
-from intervallist.interval_list import IntervalList
 from solver.constants import *
 from solver.solver import Solver
 

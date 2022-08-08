@@ -1,11 +1,10 @@
-import bisect
 import time
-from collections import deque
 
 from intervallist.interval_list import IntervalList
 from plotter.plotter import plot_statements, show_plot
 from .dependency_graph import DependencyGraph
 from .rules import *
+
 
 # TODO: Reflexive rule, Add reflexive statements?, Consistency?
 # TODO: Höhe null -> Konstant / ARB rausschmeißen
