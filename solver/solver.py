@@ -240,7 +240,8 @@ class Solver:
 
     def _strengthen_interval_height(self, sorted_ivs: list[Interval], model: tuple):
         all_intervals: list[Interval] = sorted_ivs
-
+        x = 0
+        y = 0
         i: int = 0
         while i < len(all_intervals):
             updated: bool = False
@@ -248,16 +249,24 @@ class Solver:
             offset: int = 1
             while i + offset < len(all_intervals) and all_intervals[i].distance_to(all_intervals[i + offset]) == 0:
                 result = interval_strength(all_intervals[i], all_intervals[i + offset])
+
+                z = time.time()
                 added: bool = add_to_tree(model, result, self._verbose)
+                x += (time.time() - z)
                 if added:
-                    index: int = bisect.bisect_left(all_intervals, result)
-                    all_intervals.insert(index, result)
+                    z = time.time()
+                    bisect.insort_left(all_intervals, result)
+                    y += (time.time() - z)
                     updated = True
                     continue
                 offset += 1
 
             if not updated:
                 i += 1
+        
+        print(f"adding tree: {x}")
+        print(f"adding list: {y}")
+        print(f"adding total: {x + y}")
 
     def _strengthen_interval_height_sides(self, sorted_ivs: list[Interval], model: tuple):
         all_intervals: list[Interval] = sorted_ivs
