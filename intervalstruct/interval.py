@@ -52,6 +52,12 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
         return Interval(self.begin_other, self.end_other, self.quality, self.begin, self.end)
 
     # added
+    def stronger_as(self, iv, height=None):
+        return is_stronger_as(self.quality, iv.quality) and self.begin <= iv.begin and self.end >= iv.end and \
+               ((self.begin_other >= iv.begin_other and self.end_other <= iv.end_other) or
+                (height is not None and height[0] <= self.begin_other and height[1] >= self.end_other))
+
+    # added
     def enveloped_by(self, begin, end=None):
         if end is None:
             return self.enveloped_by(begin.begin, begin.end)

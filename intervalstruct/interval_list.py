@@ -1,5 +1,4 @@
 import bisect
-import time
 from collections import deque
 from collections.abc import MutableSet
 from typing import Iterator
@@ -12,14 +11,8 @@ from solver.util import is_stronger_as
 
 class IntervalList(MutableSet):
     def __init__(self, ivs=None):
-        self._x_set: list[Interval] = []
-        self._y_set: list[Interval] = []
+        self._x_set: list[Interval] = sorted(ivs) if ivs is not None else []
         self._verbose: int = 1
-
-        if ivs is None:
-            return
-
-        self._x_set = sorted(ivs)
 
     def add(self, statement: Interval, intersect=False, height=None) -> bool:
         if statement is None or self.ins(self._x_set, statement):
@@ -37,7 +30,7 @@ class IntervalList(MutableSet):
         # we can remove the old one
 
         for iv in enveloping:
-            if is_stronger_as(statement.quality, iv.quality) and \
+            if is_stronger_as(statement.quality, iv.quality) and statement.begin <= iv.begin and statement.end >= iv.end and \
                     ((statement.begin_other >= iv.begin_other and statement.end_other <= iv.end_other)
                      or (height is not None and height[0] <= statement.begin_other and height[
                                 1] >= statement.end_other)):
@@ -56,7 +49,6 @@ class IntervalList(MutableSet):
                 return False
 
         bisect.insort_left(self._x_set, statement)
-        bisect.insort_left(self._y_set, statement.turn_interval())
 
         # build all intersections
         if not intersect:
@@ -72,18 +64,13 @@ class IntervalList(MutableSet):
 
     def strengthen_interval_height(self):
         i: int = 0
-        x = 0
-        a = 0
         while i < len(self._x_set):
-            a += 1
             updated: bool = False
 
             offset: int = 1
             while i + offset < len(self._x_set) and self._x_set[i].distance_to(self._x_set[i + offset]) == 0:
                 result = interval_strength(self._x_set[i], self._x_set[i + offset])
-                y = time.time()
                 added: bool = self.add(result)
-                x += (time.time() - y)
                 if added:
                     updated = True
                     continue
@@ -91,16 +78,12 @@ class IntervalList(MutableSet):
 
             if not updated:
                 i += 1
-        print(f"adding: {x}")
-        print(f"a: {a}")
 
     def remove(self, iv: Interval):
         self._x_set.remove(iv)
-        self._y_set.remove(iv.turn_interval())
 
     def discard(self, iv: Interval):
         self._x_set.remove(iv)
-        self._y_set.remove(iv.turn_interval())
 
     def __contains__(self, iv: Interval) -> bool:
         return iv in self._x_set
@@ -114,14 +97,8 @@ class IntervalList(MutableSet):
     def overlap_x_iv(self, iv: Interval) -> list[Interval]:
         return IntervalList._overlap(self._x_set, iv.begin, iv.end)
 
-    def overlap_y_iv(self, iv: Interval) -> list[Interval]:
-        return IntervalList._overlap(self._y_set, iv.begin, iv.end)
-
     def overlap_x(self, begin: float, end: float) -> list[Interval]:
         return IntervalList._overlap(self._x_set, begin, end)
-
-    def overlap_y(self, begin: float, end: float) -> list[Interval]:
-        return IntervalList._overlap(self._y_set, begin, end)
 
     @staticmethod
     def _overlap(ivs: list, begin: float, end: float) -> list[Interval]:
@@ -147,14 +124,8 @@ class IntervalList(MutableSet):
     def envelop_x_iv(self, iv: Interval) -> list[Interval]:
         return IntervalList._envelop(self._x_set, iv.begin, iv.end)
 
-    def envelop_y_iv(self, iv: Interval) -> list[Interval]:
-        return IntervalList._envelop(self._y_set, iv.begin, iv.end)
-
     def envelop_x(self, begin: float, end: float) -> list[Interval]:
         return IntervalList._envelop(self._x_set, begin, end)
-
-    def envelop_y(self, begin: float, end: float) -> list[Interval]:
-        return IntervalList._envelop(self._y_set, begin, end)
 
     @staticmethod
     def _envelop(ivs: list, begin: float, end: float) -> list[Interval]:

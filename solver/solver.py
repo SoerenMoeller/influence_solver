@@ -1,4 +1,6 @@
+import bisect
 import time
+from collections import deque
 
 from intervalstruct.interval_list import IntervalList
 from intervalstruct.intervaltree import IntervalTree
@@ -44,7 +46,7 @@ class Solver:
         interval_y: tuple[float, float] = interval[3]
 
         selector: tuple[str, str] = (influencing, influenced)
-        if selector not in self._intervals:
+        if selector not in self._tmp_intervals:
             self._tmp_intervals[selector] = set()
 
         interval: Interval = Interval(interval_x[0], interval_x[1], quality, interval_y[0], interval_y[1])
@@ -67,8 +69,9 @@ class Solver:
         used_variables: list[str] = order + [influencing, influenced]
         keys: set[tuple] = {key for key in self._tmp_intervals if key[0] in used_variables and key[1] in used_variables}
         for key in keys:
-            intervals: set[Interval] = {iv for iv in self._tmp_intervals[key] if iv.overlaps(y_lower, y_upper)} \
-                if key[1] == influenced else self._tmp_intervals[key]
+            #intervals: set[Interval] = {iv for iv in self._tmp_intervals[key] if iv.overlaps(y_lower, y_upper)} \
+            #    if key[1] == influenced else self._tmp_intervals[key]
+            intervals = self._tmp_intervals[key]
             if key[1] == influenced and key[0] != influencing:
                 self._intervals[key] = IntervalTree(intervals)
                 break
@@ -88,11 +91,10 @@ class Solver:
         transitive_time_start: float = time.time()
         self._build_transitive_cover(order, statement)
         transitive_time: float = time.time() - transitive_time_start
-        print(len(self))
 
         # get all overlapping
         overlaps_x: list[Interval] = model.overlap_x(x_lower, x_upper)
-        overlaps_y: set[Interval] = {elem.turn_interval() for elem in model.overlap_y(y_lower, y_upper)}
+#        overlaps_y: set[Interval] = {elem.turn_interval() for elem in model.overlap_y(y_lower, y_upper)}
         # not solvable if the condition is not met
         # if not overlaps_x.issubset(overlaps_y):
         #    self._print_result(adding_time, time.time() - solve_time_start, transitive_time, False, statement,
@@ -116,8 +118,8 @@ class Solver:
             return True
 
         # check which area has to be checked for propagation
-        sorted_tube: list[Interval] = sorted(overlaps_y)
-        sorted_tube = _shorten_range(sorted_tube, statement)
+     #   sorted_tube: list[Interval] = sorted(overlaps_y)
+        #sorted_tube = _shorten_range(sorted_tube, statement)
 
         # propagate (here, left and right is only needed once)
         tube_time_start: float = time.time()
@@ -226,13 +228,71 @@ class Solver:
         for interval in model_ab.all_intervals():
             overlapping: list[Interval] = model_bc[interval.begin:interval.end]
             # TODO: build widths, dont add them / only when more nodes use this?
-            overlapping = self._strengthen_interval_width(overlapping, interval.begin, interval.end)
+            overlapping = self.strengthen_interval_width(overlapping, interval.begin, interval.end)
 
             for overlapped_interval in overlapping:
                 rule: Interval = transitivity(interval.turn_interval(), overlapped_interval)
                 added: bool = self._intervals[(a, c)].add(rule, height=height)
                 if added:
                     self._dependency_graph.add(rule)
+
+    def strengthen_interval_width(self, sorted_ivs: list[Interval], start: float, end: float) \
+            -> list[Interval]:
+        return self._strengthen_interval_width_short(sorted_ivs, start) if len(sorted_ivs) < 20 else \
+            self._strengthen_interval_width_long(sorted_ivs, start, end)
+
+    def _strengthen_interval_width_short(self, all_intervals: list[Interval], start: float) \
+            -> list[Interval]:
+        i: int = 0
+        offset: int = 1
+        while i < len(all_intervals):
+            if not all_intervals[i].contains_point(start):
+                return all_intervals[:i]
+            if not i + offset < len(all_intervals) or all_intervals[i].distance_to(all_intervals[i + offset]) > 0:
+                i += 1
+                offset = 1
+                continue
+
+            result = interval_join(all_intervals[i], all_intervals[i + offset])
+            add: bool = better_than_existing(result, all_intervals)
+            if add:
+                bisect.insort_left(all_intervals, result)
+                continue
+            offset += 1
+
+        return all_intervals
+
+    def _strengthen_interval_width_long(self, all_intervals: list[Interval], start: float, end: float) \
+            -> list[Interval]:
+        match_start: deque = deque()
+        for iv in all_intervals:
+            if iv.contains_point(start):
+                match_start.append(iv)
+                continue
+            break
+
+        while len(match_start) > 0:
+            interval: Interval = match_start.popleft()
+            index: int = bisect.bisect_left(all_intervals, interval)
+            for i in range(len(all_intervals) - index):
+                if index + i < len(all_intervals) and interval.distance_to(all_intervals[index + i]) == 0:
+                    result = interval_join(interval, all_intervals[index + i])
+                    add: bool = better_than_existing(result, all_intervals)
+
+                    if add:
+                        bisect.insort_left(all_intervals, result)
+                        match_start.append(result)
+                    continue
+                break
+            if not (interval.begin <= start and interval.end >= end):
+                all_intervals.remove(interval)
+
+        border: int = len(all_intervals)
+        for i in range(len(all_intervals)):
+            if not all_intervals[i].contains_point(start):
+                border = i
+                break
+        return all_intervals[:border]
 
     def __len__(self):
         length: int = 0
@@ -242,6 +302,12 @@ class Solver:
 
     def __str__(self):
         return str(self._intervals)
+
+
+def better_than_existing(interval: Interval, intervals: list[Interval]) -> bool:
+    if interval is None:
+        return False
+    return [iv for iv in intervals if iv.stronger_as(interval)] == []
 
 
 def _check_for_gap(intervals: list[Interval]) -> bool:
