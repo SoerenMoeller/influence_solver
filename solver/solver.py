@@ -14,7 +14,7 @@ from .rules import *
 
 class Solver:
     _intervals: dict[tuple] = {}
-    _verbose: int = 1
+    _verbose: int = 4
     _dependency_graph: DependencyGraph = DependencyGraph()
     _tmp_intervals: dict[tuple, set] = {}
 
@@ -69,7 +69,7 @@ class Solver:
         used_variables: list[str] = order + [influencing, influenced]
         keys: set[tuple] = {key for key in self._tmp_intervals if key[0] in used_variables and key[1] in used_variables}
         for key in keys:
-            intervals: set[Interval] = {iv for iv in self._tmp_intervals[key] if iv.overlaps(y_lower, y_upper)} \
+            intervals: set[Interval] = {iv for iv in self._tmp_intervals[key] if iv.turn_interval().overlaps(y_lower, y_upper)} \
                 if key[1] == influenced else self._tmp_intervals[key]
             if key[1] == influenced and key[0] != influencing:
                 self._intervals[key] = IntervalTree(intervals)
@@ -224,13 +224,13 @@ class Solver:
             intervals.update(model_ab.envelop_y(x_range[0], x_range[1]))
         """
 
-        for interval in model_ab.all_intervals():
-            overlapping: list[Interval] = model_bc[interval.begin:interval.end]
+        for interval in model_ab.intervals():
+            overlapping: list[Interval] = model_bc[interval.begin_other:interval.end_other]
             # TODO: build widths, dont add them / only when more nodes use this?
-            overlapping = self.strengthen_interval_width(overlapping, interval.begin, interval.end)
+            overlapping = self.strengthen_interval_width(overlapping, interval.begin_other, interval.end_other)
 
             for overlapped_interval in overlapping:
-                rule: Interval = transitivity(interval.turn_interval(), overlapped_interval)
+                rule: Interval = transitivity(interval, overlapped_interval)
                 added: bool = self._intervals[(a, c)].add(rule, height=height)
                 if added:
                     self._dependency_graph.add(rule)

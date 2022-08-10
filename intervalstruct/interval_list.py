@@ -53,8 +53,8 @@ class IntervalList(MutableSet):
         # build all intersections
         if not intersect:
             return True
-        for iv in overlapping:
-            self.add(interval_strength(statement, iv), intersect=False)
+        #for iv in overlapping:
+        #    self.add(interval_strength(statement, iv), intersect=False)
 
         return True
 
@@ -305,11 +305,11 @@ class IntervalList(MutableSet):
                 break
         return all_intervals[:border]
 
-    def all_intervals(self):
+    def intervals(self):
         return self._x_set
 
-    def all_intervals_turned(self):
-        return self._y_set
+    def intervals_turned(self):
+        return sorted({iv.turn_interval() for iv in self._x_set})
 
 
 def _bisect_point(ivs: list, point: float) -> int:

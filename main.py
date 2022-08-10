@@ -11,9 +11,9 @@ def main():
     # modelled at arbitrary degrees of granularity
 
     resistance = 300
-    phase_granularity = 0.005
+    phase_granularity = 0.01
     top_ac_voltage = 230
-    voltage_granularity = 1
+    voltage_granularity = 30
 
     peak_voltage = top_ac_voltage * math.sqrt(2)
     peak_current = peak_voltage / resistance

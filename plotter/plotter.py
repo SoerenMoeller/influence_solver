@@ -23,14 +23,14 @@ def plot_statements(intervals: dict, influences: list[tuple[str, str]], statemen
         if influence not in intervals:
             continue
 
-        statements: list[Interval] = intervals[influence].all_intervals()
-        turned: list[Interval] = intervals[influence].all_intervals_turned()
+        statements: list[Interval] = intervals[influence].intervals()
+        turned: list[Interval] = intervals[influence].intervals_turned()
 
         if len(statements) == 0:
             continue
 
         # setup axis
-        min_x, max_x, min_y, max_y = statements[0].begin, statements[-1].end, turned[0].begin - 0.2, turned[-1].end + 0.1
+        min_x, max_x, min_y, max_y = statements[0].begin, statements[-1].end, turned[0].begin, turned[-1].end
         axis[index].axis([min_x, max_x, min_y, max_y])
         axis[index].set(xlabel=influence[0], ylabel=influence[1])
 

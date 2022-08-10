@@ -278,8 +278,11 @@ class IntervalTree(MutableSet):
         for iv in self.all_intervals:
             self._add_boundaries(iv)
 
-    def all_intervals(self):
+    def intervals(self):
         return sorted(self.all_intervals)
+
+    def intervals_turned(self):
+        return sorted({iv.turn_interval() for iv in self.all_intervals})
 
     def copy(self):
         """
