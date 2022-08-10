@@ -3,7 +3,7 @@ import matplotlib.patches as mpatches
 from matplotlib import image as mpimg
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
-from intervallist.interval import Interval
+from intervalstruct.interval import Interval
 from solver.util import fetch_image_name
 
 

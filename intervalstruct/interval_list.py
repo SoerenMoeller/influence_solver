@@ -4,7 +4,7 @@ from collections import deque
 from collections.abc import MutableSet
 from typing import Iterator
 
-from intervallist.interval import Interval
+from intervalstruct.interval import Interval
 from solver.constants import QUALITY_CONS
 from solver.rules import interval_strength, interval_strength_left, interval_strength_right, interval_join
 from solver.util import is_stronger_as
@@ -17,12 +17,12 @@ class IntervalList(MutableSet):
         self._verbose: int = 1
 
         if ivs is None:
-            ivs = []
-        for iv in ivs:
-            self.add(iv)
+            return
+
+        self._x_set = sorted(ivs)
 
     def add(self, statement: Interval, intersect=False, height=None) -> bool:
-        if statement is None or statement in self._x_set:  # TODO: optimize
+        if statement is None or self.ins(self._x_set, statement):
             return False
 
         if statement.begin_other == statement.end_other:
@@ -35,6 +35,7 @@ class IntervalList(MutableSet):
 
         # if new statement envelops interval with less width and more height and weaker quality,
         # we can remove the old one
+
         for iv in enveloping:
             if is_stronger_as(statement.quality, iv.quality) and \
                     ((statement.begin_other >= iv.begin_other and statement.end_other <= iv.end_other)
@@ -60,26 +61,30 @@ class IntervalList(MutableSet):
         # build all intersections
         if not intersect:
             return True
-        #for iv in overlapping:
-        #    self.add(interval_strength(statement, iv), intersect=False)
+        for iv in overlapping:
+            self.add(interval_strength(statement, iv), intersect=False)
 
         return True
 
+    def ins(self, a, x):
+        i = bisect.bisect_left(a, x)
+        return i != len(a) and a[i] == x
+
     def strengthen_interval_height(self):
-        l = [Interval(iv.begin, iv.end, iv.quality, iv.begin_other, iv.end_other) for iv in self._x_set]
         i: int = 0
         x = 0
-        while i < len(l):
+        a = 0
+        while i < len(self._x_set):
+            a += 1
             updated: bool = False
 
             offset: int = 1
-            while i + offset < len(l) and l[i].distance_to(l[i + offset]) == 0:
-                result = interval_strength(l[i], l[i + offset])
+            while i + offset < len(self._x_set) and self._x_set[i].distance_to(self._x_set[i + offset]) == 0:
+                result = interval_strength(self._x_set[i], self._x_set[i + offset])
                 y = time.time()
                 added: bool = self.add(result)
                 x += (time.time() - y)
                 if added:
-                    bisect.insort_left(l, result)
                     updated = True
                     continue
                 offset += 1
@@ -87,6 +92,7 @@ class IntervalList(MutableSet):
             if not updated:
                 i += 1
         print(f"adding: {x}")
+        print(f"a: {a}")
 
     def remove(self, iv: Interval):
         self._x_set.remove(iv)

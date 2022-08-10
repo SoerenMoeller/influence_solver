@@ -1,5 +1,5 @@
 from typing import Union
-from intervallist.interval import Interval
+from intervalstruct.interval import Interval
 from .util import quality_add, min_quality, quality_times, is_stronger_as
 from .constants import *
 

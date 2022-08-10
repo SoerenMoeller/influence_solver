@@ -16,7 +16,7 @@ Changed:
 from solver.util import is_stronger_as
 
 """
-intervaltree: A mutable, self-balancing intervallist tree for Python 2 and 3.
+intervaltree: A mutable, self-balancing intervalstruct tree for Python 2 and 3.
 Queries may be by point, by range overlap, or by range envelopment.
 
 Interval class
@@ -65,7 +65,7 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
 
     def overlaps(self, begin, end=None):
         """
-        Whether the intervallist overlaps the given point, range or Interval.
+        Whether the intervalstruct overlaps the given point, range or Interval.
         :param begin: beginning point of the range, or the point, or an Interval
         :param end: end point of the range. Optional if not testing ranges.
         :return: True or False
@@ -94,7 +94,7 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
         :param begin: beginning point of the range, or the point, or an Interval
         :param end: end point of the range. Optional if not testing ranges.
         :return: Return the overlap size, None if not overlap is found
-        :rtype: depends on the given input (e.g., int will be returned for int intervallist and timedelta for
+        :rtype: depends on the given input (e.g., int will be returned for int intervalstruct and timedelta for
         datetime intervals)
         """
         overlaps = self.overlaps(begin, end)
@@ -167,7 +167,7 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
 
     def is_null(self):
         """
-        Whether this equals the null intervallist.
+        Whether this equals the null intervalstruct.
         :return: True if end <= begin else False
         :rtype: bool
         """
