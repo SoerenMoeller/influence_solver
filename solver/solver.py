@@ -69,12 +69,11 @@ class Solver:
         used_variables: list[str] = order + [influencing, influenced]
         keys: set[tuple] = {key for key in self._tmp_intervals if key[0] in used_variables and key[1] in used_variables}
         for key in keys:
-            #intervals: set[Interval] = {iv for iv in self._tmp_intervals[key] if iv.overlaps(y_lower, y_upper)} \
-            #    if key[1] == influenced else self._tmp_intervals[key]
-            intervals = self._tmp_intervals[key]
+            intervals: set[Interval] = {iv for iv in self._tmp_intervals[key] if iv.overlaps(y_lower, y_upper)} \
+                if key[1] == influenced else self._tmp_intervals[key]
             if key[1] == influenced and key[0] != influencing:
                 self._intervals[key] = IntervalTree(intervals)
-                break
+                continue
             self._intervals[key] = IntervalList(intervals)
         adding_time: float = time.time() - adding_time_start
 
