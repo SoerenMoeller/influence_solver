@@ -31,6 +31,11 @@ def plot_statements(intervals: dict, influences: list[tuple[str, str]], statemen
 
         # setup axis
         min_x, max_x, min_y, max_y = statements[0].begin, statements[-1].end, turned[0].begin, turned[-1].end
+        if statement is not None and (statement[0], statement[4]) == influence:
+            min_x = min(min_x, statement[1][0])
+            max_x = max(max_x, statement[1][1])
+            min_y = min(min_y, statement[3][0])
+            max_y = max(max_y, statement[3][1])
         axis[index].axis([min_x, max_x, min_y, max_y])
         axis[index].set(xlabel=influence[0], ylabel=influence[1])
 

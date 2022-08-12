@@ -1,4 +1,5 @@
 from typing import Union
+from functools import reduce
 from intervalstruct.interval import Interval
 from .util import quality_add, min_quality, quality_times, is_stronger_as
 from .constants import *
@@ -74,6 +75,16 @@ def interval_strength(interval_a: Interval, interval_b: Interval) -> Union[Inter
     quality: str = min_quality(interval_a.quality, interval_b.quality)
 
     return Interval(x_start, x_end, quality, y_start, y_end)
+
+
+def interval_strength_multiple(begin: float, end: float, ivs: set[Interval]) -> Interval:
+    # Only use when overlapping!
+
+    begin_other: float = max(iv.begin_other for iv in ivs)
+    end_other: float = min(iv.end_other for iv in ivs)
+    quality: str = reduce(min_quality, (iv.quality for iv in ivs))
+
+    return Interval(begin, end, quality, begin_other, end_other)
 
 
 def transitivity(interval_a: Interval, interval_b: Interval) -> Union[Interval, None]:

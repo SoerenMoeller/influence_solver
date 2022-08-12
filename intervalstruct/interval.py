@@ -69,6 +69,14 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
             return self.enveloping(begin.begin, begin.end)
         return begin >= self.begin and end <= self.end
 
+    # added
+    def change(self, begin=None, end=None, quality=None, begin_other=None, end_other=None):
+        return Interval(begin if begin is not None else self.begin,
+                        end if end is not None else self.end,
+                        quality if quality is not None else self.quality,
+                        begin_other if begin_other is not None else self.begin_other,
+                        end_other if end_other is not None else self.end_other)
+
     def overlaps(self, begin, end=None):
         """
         Whether the intervalstruct overlaps the given point, range or Interval.
@@ -245,7 +253,9 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
                 return 0
             return -1 if s < o else 1
         """
-        return 0
+        if self.quality == other.quality:
+            return 0
+        return 1 if is_stronger_as(self.quality, other.quality) else -1
 
     def __lt__(self, other):
         """
