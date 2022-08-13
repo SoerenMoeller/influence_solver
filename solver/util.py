@@ -1,6 +1,5 @@
 import bisect
 
-from intervalstruct.interval import Interval
 from .constants import *
 
 
@@ -57,6 +56,3 @@ def is_stronger_as(quality_a: str, quality_b: str) -> bool:
     else:
         assert False, f"Tried to strengthen unknown quality pair: {quality_a}, {quality_b}"
 
-
-def bisect_point(ivs: list, point: float) -> int:
-    return bisect.bisect_left(ivs, Interval(point, point, QUALITY_CONS, 0, 0))

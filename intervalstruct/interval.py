@@ -164,7 +164,7 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
         if they touch or overlap.
         :param other: Interval or point
         :return: distance
-        :rtype: Number
+        :rtype: int
         """
         if self.overlaps(other):
             return 0

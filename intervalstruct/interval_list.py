@@ -1,7 +1,5 @@
-import bisect
-
 from intervalstruct.interval import Interval
-from solver.constants import QUALITY_CONS
+import intervalstruct.interval_list_dynamic as FinalList
 from solver.rules import interval_strength_left, interval_strength_right, interval_strength_multiple
 
 
@@ -38,6 +36,9 @@ class IntervalListStatic:
 
     # TODO: Edge case only one iv?
     def strengthen_interval_height(self):
+        # do we know any borders yet?
+        # else: can we find some or strengthen the old ones
+
         self._x_set = []
         for i in range(len(self._boundaries) - 1):
             start: float = self._boundaries[i]
@@ -50,28 +51,6 @@ class IntervalListStatic:
 
     def __len__(self) -> int:
         return len(self._x_set)
-
-    def overlap(self, begin, end=None) -> list[Interval]:
-        if end is None:
-            return self.overlap(begin.begin, begin.end)
-        index: int = _bisect_point(self._x_set, begin)
-
-        lower = index
-        if index > 0 and len(self._x_set) > 0:
-            for i in range(index - 1, -1, -1):
-                if not self._x_set[i].overlaps(begin, end):
-                    break
-                lower = i
-
-        upper = index - 1
-        for i in range(index, len(self._x_set)):
-            if self._x_set[i].begin > end:
-                break
-            upper = i
-
-        if upper - lower < 0:
-            return []
-        return self._x_set[lower:upper + 1]
 
     def get_intervals(self, begin, end=None):
         if end is None:

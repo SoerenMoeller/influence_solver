@@ -307,13 +307,6 @@ def better_than_existing(interval: Interval, intervals: list[Interval]) -> bool:
     return [iv for iv in intervals if iv.stronger_as(interval)] == []
 
 
-def _check_for_gap(intervals: list[Interval]) -> bool:
-    for i in range(len(intervals) - 1):
-        if intervals[i].distance_to(intervals[i + 1]) > 0:
-            return True
-    return False
-
-
 def _shorten_range(intervals: list[Interval], statement: tuple) -> list[Interval]:
     interval_x: tuple[float, float] = statement[1]
     interval_y: tuple[float, float] = statement[3]
