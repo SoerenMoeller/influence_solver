@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from intervalstruct.interval_list_dynamic import IntervalListDynamic
 from matplotlib import image as mpimg
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
@@ -7,7 +8,7 @@ from intervalstruct.interval import Interval
 from solver.util import fetch_image_name
 
 
-def plot_statements(intervals: dict, influences: list[tuple[str, str]], statement: tuple = None):
+def plot_statements(intervals: dict, influences: list[tuple[str, str]]):
     # setup amount of plots
     figure, axis = plt.subplots(max(len(influences), 2))  # when using subplots, at least 2 are needed
 
@@ -19,39 +20,48 @@ def plot_statements(intervals: dict, influences: list[tuple[str, str]], statemen
                         wspace=0.4,
                         hspace=1)
 
+    instance = IntervalListDynamic.get_instance()
     for index, influence in enumerate(influences):
         if influence not in intervals:
             continue
 
+        _plot_axis(axis, index, instance.statement, intervals, influence)
+
+
+def _plot_axis(axis, index: int, statement: tuple, intervals: dict, influence: tuple[str, str]):
+    if type(intervals[influence]) == set:
+        statements: list[Interval] = list(intervals[influence])
+        turned: list[Interval] = list(iv.turn_interval() for iv in intervals[influence])
+    else:
         statements: list[Interval] = intervals[influence].intervals()
         turned: list[Interval] = intervals[influence].intervals_turned()
 
-        if len(statements) == 0:
-            continue
+    if len(statements) == 0:
+        return
 
-        # setup axis
-        min_x, max_x, min_y, max_y = statements[0].begin, statements[-1].end, turned[0].begin, turned[-1].end
-        if statement is not None and (statement[0], statement[4]) == influence:
-            min_x = min(min_x, statement[1][0])
-            max_x = max(max_x, statement[1][1])
-            min_y = min(min_y, statement[3][0])
-            max_y = max(max_y, statement[3][1])
-        axis[index].axis([min_x, max_x, min_y, max_y])
-        axis[index].set(xlabel=influence[0], ylabel=influence[1])
+    # setup axis
+    min_x, max_x, min_y, max_y = statements[0].begin, statements[-1].end, turned[0].begin, turned[-1].end
+    if statement is not None and (statement[0], statement[4]) == influence:
+        min_x = min(min_x, statement[1][0])
+        max_x = max(max_x, statement[1][1])
+        min_y = min(min_y, statement[3][0])
+        max_y = max(max_y, statement[3][1])
+    axis[index].axis([min_x, max_x, min_y, max_y])
+    axis[index].set(xlabel=influence[0], ylabel=influence[1])
 
-        # plot the statements
-        for interval in statements:
-            plot_statement(axis[index], interval)
+    # plot the statements
+    for interval in statements:
+        plot_statement(axis[index], interval)
 
-        # plot optional statement
-        if statement is not None and (statement[0], statement[4]) == influence:
-            quality: str = statement[2]
-            interval_x: tuple[float, float] = statement[1]
-            interval_y: tuple[float, float] = statement[3]
+    # plot optional statement
+    if statement is not None and (statement[0], statement[4]) == influence:
+        quality: str = statement[2]
+        interval_x: tuple[float, float] = statement[1]
+        interval_y: tuple[float, float] = statement[3]
 
-            statement_interval: Interval = Interval(interval_x[0], interval_x[1], quality,
-                                                    interval_y[0], interval_y[1])
-            plot_statement(axis[index], statement_interval, "red")
+        statement_interval: Interval = Interval(interval_x[0], interval_x[1], quality,
+                                                interval_y[0], interval_y[1])
+        plot_statement(axis[index], statement_interval, "red")
 
 
 def plot_statement(ax, statement: Interval, color="black"):

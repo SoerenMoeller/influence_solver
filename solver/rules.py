@@ -87,6 +87,18 @@ def interval_strength_multiple(begin: float, end: float, ivs: set[Interval]) -> 
     return Interval(begin, end, quality, begin_other, end_other)
 
 
+def interval_join_multiple(ivs: list[Interval]) -> Union[Interval, None]:
+    for i in range(len(ivs) - 1):
+        if ivs[i].distance_to(ivs[i + 1]) > 0:
+            return None
+
+    quality: str = reduce(quality_add, (iv.quality for iv in ivs))
+    begin_other: float = min(iv.begin_other for iv in ivs)
+    end_other: float = max(iv.end_other for iv in ivs)
+
+    return Interval(ivs[0].begin, ivs[1].end, quality, begin_other, end_other)
+
+
 def transitivity(interval_a: Interval, interval_b: Interval) -> Union[Interval, None]:
     if not (interval_a.begin_other >= interval_b.begin and interval_a.end_other <= interval_b.end):
         return None
@@ -95,17 +107,13 @@ def transitivity(interval_a: Interval, interval_b: Interval) -> Union[Interval, 
     return Interval(interval_a.begin, interval_a.end, quality, interval_b.begin_other, interval_b.end_other)
 
 
-def rule_fact(statement: tuple, area: list[Interval]) -> bool:
+def rule_fact(statement: tuple, iv: Interval) -> bool:
+    if iv is None:
+        return False
+
     quality: str = statement[2]
     interval_x: tuple[float, float] = statement[1]
     interval_y: tuple[float, float] = statement[3]
 
-    area = {iv for iv in area if iv.begin <= interval_x[0] and iv.end >= interval_x[1]
-            and iv.begin_other >= interval_y[0] and iv.end_other <= interval_y[1]}
-
-    for sub_interval in area:
-        quality_sub: str = sub_interval.quality
-
-        if is_stronger_as(quality_sub, quality):
-            return True
-    return False
+    return iv.enveloping(interval_x[0], interval_x[1])  and iv.begin_other >= interval_y[0] \
+        and iv.end_other <= interval_y[1] and is_stronger_as(iv.quality, quality)

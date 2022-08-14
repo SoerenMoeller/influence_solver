@@ -4,8 +4,8 @@ from solver.solver import Solver
 
 
 def main():
-    solver: Solver = Solver(model)
-    result: bool = solver.solve(statement)
+    solver: Solver = Solver(current_model)
+    result: bool = solver.solve(current_model_statements[3])
 
 
 if __name__ == '__main__':

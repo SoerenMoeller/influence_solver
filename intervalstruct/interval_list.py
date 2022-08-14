@@ -1,5 +1,5 @@
 from intervalstruct.interval import Interval
-import intervalstruct.interval_list_dynamic as FinalList
+import solver.solver as solver
 from solver.rules import interval_strength_left, interval_strength_right, interval_strength_multiple
 
 
@@ -36,18 +36,7 @@ class IntervalListStatic:
 
     # TODO: Edge case only one iv?
     def strengthen_interval_height(self):
-        # do we know any borders yet?
-        # else: can we find some or strengthen the old ones
-
-        self._x_set = []
-        for i in range(len(self._boundaries) - 1):
-            start: float = self._boundaries[i]
-            if not self._overlap_map[start]:
-                continue
-
-            end: float = self._boundaries[i + 1]
-            iv: Interval = interval_strength_multiple(start, end, self._overlap_map[start])
-            self._x_set.append(iv)
+        solver.strengthen_interval_height(self._boundaries, self._overlap_map, self._x_set)
 
     def __len__(self) -> int:
         return len(self._x_set)
