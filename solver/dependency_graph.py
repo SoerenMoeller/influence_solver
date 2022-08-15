@@ -1,5 +1,6 @@
 from collections import deque
 
+
 class DependencyGraph:
     _start: str
     _end: str
@@ -7,7 +8,7 @@ class DependencyGraph:
     def __init__(self):
         self._dependency_graph: dict[str, set[str]] = {}
 
-    def setup(self, start: str, end: str) -> list[str]:
+    def setup(self, start: str, end: str) -> tuple[list[str], int]:
         self._start = start
         self._end = end
 
@@ -17,24 +18,26 @@ class DependencyGraph:
 
         # build an order on the variables
         order: list[str] = self._bfs()
+        paths: int = 0
+        for node in order:
+            if end in self._dependency_graph[node]:
+                paths += 1
 
-        return order
+        return order, paths
 
-    def add(self, dependency: tuple):
-        a: str = dependency[0]
-        b: str = dependency[4]
-
+    def add(self, a: str, b: str, check: bool = True):
         if a not in self._dependency_graph:
             self._dependency_graph[a] = set()
         if b not in self._dependency_graph[a]:
             self._dependency_graph[a].add(b)
-            self._check_for_cycle(dependency)
+            if check:
+                self._check_for_cycle(a, b)
 
-    def _check_for_cycle(self, dependency: tuple):
+    def _check_for_cycle(self, a: str, b: str):
         for node in self._dependency_graph:
             if self._dsf_cycle_check(node, set()):
-                raise Exception(f"Couldn't add rule {dependency}, because it destroys the implicit partial order.\n"
-                                f"This can be fixed by checking the dependency graph.\n"
+                raise Exception(f"Couldn't add rule ({a}, {b})-dependency, because it destroys the implicit partial "
+                                f"order.\n This can be fixed by checking the dependency graph.\n"
                                 f"{self._dependency_graph}")
 
     def _dsf_cycle_check(self, current: str, stack: set[str]):

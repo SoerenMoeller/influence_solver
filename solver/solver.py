@@ -13,10 +13,10 @@ from .rules import *
 # TODO: Höhe null -> Konstant / ARB rausschmeißen
 from .util import get_overlap_index
 
-
+# TODO: initial solving time, final solving time
 class Solver:
     _intervals: dict[tuple] = {}
-    _verbose: int = 4
+    _verbose: int = 1
     _dependency_graph: DependencyGraph = DependencyGraph()
     _tmp_intervals: dict[tuple, set] = {}
     _statement: tuple[str, tuple[float, float], str, tuple[float, float], str]
@@ -42,7 +42,7 @@ class Solver:
     def _add_single_interval(self, interval: tuple):
         influencing: str = interval[0]
         influenced: str = interval[4]
-        self._dependency_graph.add(interval)
+        self._dependency_graph.add(influencing, influenced)
 
         quality: str = interval[2]
         interval_x: tuple[float, float] = interval[1]
@@ -67,7 +67,7 @@ class Solver:
         quality: str = statement[2]
         x_lower, x_upper = statement[1]
         y_lower, y_upper = statement[3]
-        order: list = self._dependency_graph.setup(influencing, influenced)
+        order, paths = self._dependency_graph.setup(influencing, influenced)
 
         used_variables: list[str] = order + [influencing, influenced]
         if (influencing, influenced) not in self._tmp_intervals:
@@ -81,7 +81,7 @@ class Solver:
                 self._intervals[key] = IntervalTree(intervals)
                 continue
             if key[1] == influenced and key[0] == influencing:
-                self._intervals[key] = IntervalListDynamic(statement, intervals)
+                self._intervals[key] = IntervalListDynamic(statement, intervals, paths)
                 continue
             self._intervals[key] = IntervalListStatic(intervals)
         adding_time: float = time.time() - adding_time_start
@@ -98,7 +98,7 @@ class Solver:
 
         # build transitives
         transitive_time_start: float = time.time()
-        #self._build_transitive_cover(order, statement)
+        self._build_transitive_cover(order, statement)
         transitive_time: float = time.time() - transitive_time_start
 
         # get all overlapping
@@ -192,15 +192,11 @@ class Solver:
                     model.strengthen_interval_height()
                     model.strengthen_interval_height_sides()
                     height_build.add(key)
-                print("height")
 
-                self._build_transitives(pre, node, goal, statement)
-                print("trans")
+                self._build_transitives(pre, node, goal)
                 self._dependency_graph.remove_node(node)
 
-    def _build_transitives(self, a: str, b: str, c: str, statement: tuple):
-        height: tuple[float, float] = statement[3]
-
+    def _build_transitives(self, a: str, b: str, c: str):
         model_ab: IntervalListStatic = self._intervals[(a, b)]
         model_bc: IntervalTree = self._intervals[(b, c)]
         if (a, c) not in self._intervals:
@@ -213,9 +209,9 @@ class Solver:
 
             for overlapped_interval in overlapping:
                 rule: Interval = transitivity(interval, overlapped_interval)
-                added: bool = self._intervals[(a, c)].add(rule, height=height)
+                added: bool = self._intervals[(a, c)].add(rule)
                 if added:
-                    self._dependency_graph.add(rule)
+                    self._dependency_graph.add(a, c, check=False)
 
     def strengthen_interval_width(self, sorted_ivs: list[Interval], start: float, end: float) \
             -> list[Interval]:

@@ -18,7 +18,7 @@ class IntervalListDynamic:
     def get_instance():
         return IntervalListDynamic.instance
 
-    def __init__(self, statement_init: tuple, ivs: set[Interval]):
+    def __init__(self, statement_init: tuple, ivs: set[Interval], paths: int):
         IntervalListDynamic.instance = self
         self.statement: tuple = statement_init
         self._all_intervals: set[Interval] = ivs
@@ -30,6 +30,8 @@ class IntervalListDynamic:
         self.left_upper: Union[float, None] = None
         self.right_lower: Union[float, None] = None
         self.right_upper: Union[float, None] = None
+
+        self._check_overlap = paths > 2
 
     def reset(self):
         self._overlap_map = {}
@@ -84,7 +86,7 @@ class IntervalListDynamic:
 
         return rule_fact(self.statement, iv)
 
-    def add(self, statement: Interval, height=None) -> bool:
+    def add(self, statement: Interval) -> bool:
         if statement is None or statement in self._all_intervals:
             return False
 
@@ -92,98 +94,37 @@ class IntervalListDynamic:
             statement = Interval(statement.begin, statement.end, QUALITY_CONS, statement.begin_other,
                                  statement.end_other)
 
-        overlapping: set[Interval] = self.overlap(statement)
-        enveloping: set[Interval] = get_enveloping_overlap(overlapping, statement)
-        enveloped_by: set[Interval] = get_enveloped_by_overlap(overlapping, statement)
+        if self._check_overlap:
+            height: tuple[float, float] = self.statement[3]
+            overlapping: set[Interval] = self.overlap(statement)
+            enveloping: set[Interval] = get_enveloping_overlap(overlapping, statement)
+            enveloped_by: set[Interval] = get_enveloped_by_overlap(overlapping, statement)
 
-        # if new statement envelops interval with less width and more height and weaker quality,
-        # we can remove the old one
-        for iv in enveloping:
-            if is_stronger_as(statement.quality,
-                              iv.quality) and statement.begin <= iv.begin and statement.end >= iv.end and \
-                    ((statement.begin_other >= iv.begin_other and statement.end_other <= iv.end_other)
-                     or (height is not None and height[0] <= statement.begin_other and height[
-                                1] >= statement.end_other)):
-                # remove old interval (not needed anymore)
-                self.remove(iv)
+            # if new statement envelops interval with less width and more height and weaker quality,
+            # we can remove the old one
+            for iv in enveloping:
+                if is_stronger_as(statement.quality,
+                                  iv.quality) and statement.begin <= iv.begin and statement.end >= iv.end and \
+                        ((statement.begin_other >= iv.begin_other and statement.end_other <= iv.end_other)
+                         or (height[0] <= statement.begin_other and height[1] >= statement.end_other)):
+                    # remove old interval (not needed anymore)
+                    self.remove(iv)
 
-                if 2 <= self._verbose <= 3:
-                    print(f"=== removed interval -{iv}- for stronger interval -{statement}- ===")
+                    if 2 <= self._verbose <= 3:
+                        print(f"=== removed interval -{iv}- for stronger interval -{statement}- ===")
 
-        for iv in enveloped_by:
-            if is_stronger_as(iv.quality, statement.quality) and \
-                    (iv.begin_other >= statement.begin_other and iv.end_other <= statement.end_other
-                     or (height is not None and height[0] >= iv.begin_other and height[1] <= iv.end_other)):
-                if 2 <= self._verbose <= 3:
-                    print(f"=== did not include interval -{statement}- because of stronger interval -{iv}- ===")
-                return False
+            for iv in enveloped_by:
+                if is_stronger_as(iv.quality, statement.quality) and \
+                        (iv.begin_other >= statement.begin_other and iv.end_other <= statement.end_other
+                         or (height[0] >= iv.begin_other and height[1] <= iv.end_other)):
+                    if 2 <= self._verbose <= 3:
+                        print(f"=== did not include interval -{statement}- because of stronger interval -{iv}- ===")
+                    return False
+
+            self._add_boundary(statement)
 
         self._all_intervals.add(statement)
-        self._add_boundary(statement)
         return True
-
-    """
-    def strengthen_interval_height():
-        global left_lower, left_upper, right_lower, right_upper
-    
-        lower, upper = _statement[1]
-        begin, end = _get_overlap_index(lower, upper)
-    
-        # build overlapping first
-        for i in range(begin, end):
-            point: float = _boundaries[i]
-            if not _overlap_map[point]:
-                continue
-    
-            next_point: float = _boundaries[i + 1]
-            iv: Interval = interval_strength_multiple(point, next_point, _overlap_map[point])
-            _x_set.append(iv)
-            _all_intervals.add(iv)
-    
-        left, right = _check_for_height()
-        lower, upper = _statement[4]
-        if not left:
-            for i in range(begin - 1, -1, -1):
-                point: float = _boundaries[i]
-                if not _overlap_map[i]:
-                    continue
-    
-                next_point: float = _boundaries[i + 1]
-                
-                if left_lower is not None and left_upper is not None \
-                        and next_point <= left_lower and next_point <= left_upper:
-                    break
-                
-                iv: Interval = interval_strength_multiple(point, next_point, _overlap_map[point])
-                _x_set.insert(0, iv)
-                _all_intervals.add(iv)
-    
-                if left_lower is not None and left_lower < next_point and iv.begin_other >= lower:
-                    left_lower = next_point
-                if left_upper is not None and left_upper < next_point and iv.end_other <= upper:
-                    left_upper = next_point
-    
-        if not right:
-            for i in range(end, len(_boundaries) - 1):
-                point: float = _boundaries[i]
-                
-                if right_lower is not None and right_upper is not None \
-                        and point >= right_lower and point >= right_upper:
-                    break
-                
-                if not _overlap_map[i]:
-                    continue
-    
-                next_point: float = _boundaries[i + 1]
-                iv: Interval = interval_strength_multiple(point, next_point, _overlap_map[point])
-                _x_set.append(iv)
-                _all_intervals.add(iv)
-                
-                if right_lower is not None and right_lower > point and iv.begin_other >= lower:
-                    right_lower = point
-                if right_upper is not None and right_upper > point and iv.end_other <= upper:
-                    right_upper = point
-    """
 
     def remove(self, iv: Interval):
         self._all_intervals.remove(iv)
@@ -202,11 +143,6 @@ class IntervalListDynamic:
             self._overlap_map[iv.end] = set()
             bisect.insort_left(self._boundaries, iv.end)
 
-        for i in range(len(self._boundaries)):
-            for j in range(i + 1, len(self._boundaries)):
-                if self._boundaries[i] == self._boundaries[j]:
-                    print("ERROR")
-
         left, right = get_overlap_index(self._boundaries, iv)
         for i in range(left, right):
             point: float = self._boundaries[i]
@@ -223,8 +159,6 @@ class IntervalListDynamic:
                     self._overlap_map[self._boundaries[right]].add(iv)
 
     def _remove_boundary(self, iv: Interval):
-        if iv == Interval(3.1214952229299366, 3.1314904458598725, "anti", -0.1516300189437798, 0.0483699810562202):
-            print("")
         left, right = get_overlap_index(self._boundaries, iv)
 
         removable: set[float] = set()

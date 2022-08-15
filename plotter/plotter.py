@@ -30,8 +30,8 @@ def plot_statements(intervals: dict, influences: list[tuple[str, str]]):
 
 def _plot_axis(axis, index: int, statement: tuple, intervals: dict, influence: tuple[str, str]):
     if type(intervals[influence]) == set:
-        statements: list[Interval] = list(intervals[influence])
-        turned: list[Interval] = list(iv.turn_interval() for iv in intervals[influence])
+        statements: list[Interval] = sorted(intervals[influence])
+        turned: list[Interval] = sorted(iv.turn_interval() for iv in intervals[influence])
     else:
         statements: list[Interval] = intervals[influence].intervals()
         turned: list[Interval] = intervals[influence].intervals_turned()
