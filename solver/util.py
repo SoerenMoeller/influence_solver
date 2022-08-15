@@ -1,6 +1,4 @@
-import bisect
-
-from .constants import *
+from constants import *
 
 
 def fetch_image_name(quality: str, color: str):
@@ -55,12 +53,3 @@ def is_stronger_as(quality_a: str, quality_b: str) -> bool:
         return True if quality_b in [QUALITY_ANTI, QUALITY_ARB] else False
     else:
         assert False, f"Tried to strengthen unknown quality pair: {quality_a}, {quality_b}"
-
-
-def get_overlap_index(boundaries: list[float], begin, end=None) -> tuple[int, int]:
-    if end is None:
-        return get_overlap_index(boundaries, begin.begin, begin.end)
-
-    left: int = bisect.bisect_left(boundaries, begin)
-    right: int = bisect.bisect_right(boundaries, end)
-    return left, right

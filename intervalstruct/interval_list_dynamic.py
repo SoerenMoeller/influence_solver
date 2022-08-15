@@ -4,9 +4,9 @@ from typing import Union
 
 from intervalstruct.interval import Interval
 from solver.constants import QUALITY_CONS
-from solver.rules import interval_strength_left, interval_strength_right, interval_join_multiple, rule_fact
-import solver.solver as solver
-from solver.util import is_stronger_as, get_overlap_index
+import solver.rules as rules
+import intervalstruct.util as util
+from solver.util import is_stronger_as
 
 # TODO: Stricter search in final
 
@@ -47,29 +47,7 @@ class IntervalListDynamic:
             return
 
         self._overlap_map.clear()
-        tmp_boundaries: set[float] = set()
-        for iv in self._all_intervals:
-            if iv.begin not in self._overlap_map:
-                self._overlap_map[iv.begin] = set()
-                tmp_boundaries.add(iv.begin)
-            if iv.end not in self._overlap_map:
-                self._overlap_map[iv.end] = set()
-                tmp_boundaries.add(iv.end)
-            self._overlap_map[iv.begin].add(iv)
-            self._overlap_map[iv.end].add(iv)
-
-        # TODO: cleanup
-        self._boundaries = sorted(tmp_boundaries)
-        to_add: set[Interval] = set()
-        for var in self._boundaries:
-            to_rem = set()
-            for iv in to_add:
-                if iv in self._overlap_map[var]:
-                    self._overlap_map[var].remove(iv)
-                    to_rem.add(iv)
-            to_add.difference_update(to_rem)
-            self._overlap_map[var].update(to_add)
-            to_add.update(self._overlap_map[var])
+        self._boundaries = util.init_boundaries_for_intersect(self._all_intervals, self._overlap_map)
         self._all_intervals = set()
 
         self.strengthen_interval_height()
@@ -77,14 +55,14 @@ class IntervalListDynamic:
         return self.check_widest()
 
     def strengthen_interval_height(self):
-        solver.strengthen_interval_height(self._boundaries, self._overlap_map, self._x_set, self._all_intervals)
+        util.strengthen_interval_height(self._boundaries, self._overlap_map, self._x_set, self._all_intervals)
 
     def check_widest(self):
         # TODO: fix for edge cases
-        begin, end = get_overlap_index(self._boundaries, self.statement[1][0], self.statement[1][1])
-        iv: Union[Interval, None] = interval_join_multiple(self._x_set[begin:end])
+        begin, end = util.get_overlap_index(self._boundaries, self.statement[1][0], self.statement[1][1])
+        iv: Union[Interval, None] = rules.interval_join_multiple(self._x_set[begin:end])
 
-        return rule_fact(self.statement, iv)
+        return rules.rule_fact(self.statement, iv)
 
     def add(self, statement: Interval) -> bool:
         if statement is None or statement in self._all_intervals:
@@ -130,10 +108,6 @@ class IntervalListDynamic:
         self._all_intervals.remove(iv)
         self._remove_boundary(iv)
 
-    def discard(self, iv: Interval):
-        self._all_intervals.discard(iv)
-        self._remove_boundary(iv)
-
     def _add_boundary(self, iv: Interval):
         if iv.begin not in self._overlap_map:
             self._overlap_map[iv.begin] = set()
@@ -143,7 +117,7 @@ class IntervalListDynamic:
             self._overlap_map[iv.end] = set()
             bisect.insort_left(self._boundaries, iv.end)
 
-        left, right = get_overlap_index(self._boundaries, iv)
+        left, right = util.get_overlap_index(self._boundaries, iv)
         for i in range(left, right):
             point: float = self._boundaries[i]
             self._overlap_map[point].add(iv)
@@ -159,7 +133,7 @@ class IntervalListDynamic:
                     self._overlap_map[self._boundaries[right]].add(iv)
 
     def _remove_boundary(self, iv: Interval):
-        left, right = get_overlap_index(self._boundaries, iv)
+        left, right = util.get_overlap_index(self._boundaries, iv)
 
         removable: set[float] = set()
         for i in range(left, right):
@@ -179,7 +153,7 @@ class IntervalListDynamic:
         if end is None:
             return self.overlap(begin.begin, begin.end)
 
-        left, right = get_overlap_index(self._boundaries, begin, end)
+        left, right = util.get_overlap_index(self._boundaries, begin, end)
 
         return set(chain.from_iterable(self._overlap_map[self._boundaries[i]] for i in range(left, right)))
 
@@ -192,23 +166,7 @@ class IntervalListDynamic:
         return self._x_set[begin:end]
 
     def strengthen_interval_height_sides(self):
-        changed = True
-        i = 0
-        while changed:
-            i += 1
-            if i > 1:
-                print("MORE T")
-            changed = False
-            for i in range(len(self._x_set) - 1):
-                result = interval_strength_left(self._x_set[i], self._x_set[i + 1])
-                if result is not None:
-                    self._x_set[i + 1] = result
-                    changed = True
-            for i in range(len(self._x_set) - 2, -1, -1):
-                result = interval_strength_right(self._x_set[i - 1], self._x_set[i])
-                if result is not None:
-                    self._x_set[i - 1] = result
-                    changed = True
+        util.strengthen_interval_height_sides(self._x_set)
 
     def intervals(self):
         return self._x_set

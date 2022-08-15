@@ -2,7 +2,7 @@ import bisect
 import time
 from collections import deque
 
-from intervalstruct.interval_list import IntervalListStatic
+from intervalstruct.interval_list_static import IntervalListStatic
 from intervalstruct.intervaltree import IntervalTree
 from intervalstruct.interval_list_dynamic import IntervalListDynamic
 from plotter.plotter import plot_statements, show_plot
@@ -101,51 +101,11 @@ class Solver:
         self._build_transitive_cover(order, statement)
         transitive_time: float = time.time() - transitive_time_start
 
-        # get all overlapping
-        # overlaps_x: list[Interval] = model.overlap_x(x_lower, x_upper)
-        #        overlaps_y: set[Interval] = {elem.turn_interval() for elem in model.overlap_y(y_lower, y_upper)}
-        # not solvable if the condition is not met
-        # if not overlaps_x.issubset(overlaps_y):
-        #    self._print_result(adding_time, time.time() - solve_time_start, transitive_time, False, statement,
-        #                       start_amount)
-        #    return False
-
-        # check if there is a gap
-        # if _check_for_gap(overlaps_x):
-        #    if 2 <= self._verbose <= 3:
-        #        print("== gap found in the searching area ==")
-        #
-        #    self._print_result(adding_time, time.time() - solve_time_start, transitive_time, quality == QUALITY_ARB,
-        #                       statement, start_amount)
-
-        #   return quality == QUALITY_ARB
-
-        # check if solvable from one of the statements in the model
-        # if rule_fact(statement, overlaps_x):
-        #    self._print_result(adding_time, time.time() - solve_time_start, transitive_time, True, statement,
-        #                       start_amount)
-        #    return True
-
-        # check which area has to be checked for propagation
-        # sorted_tube: list[Interval] = sorted(overlaps_y)
-        # sorted_tube = _shorten_range(sorted_tube, statement)
-
-        # propagate (here, left and right is only needed once)
-        tube_time_start: float = time.time()
-        IntervalListDynamic.get_instance().solve()
-
-        # build the widest intervals in the affected area
-        # sorted_area: list[Interval] = model.overlap_x(x_lower, x_upper)
-        # sorted_area = model.strengthen_interval_width(sorted_area, x_lower, x_upper)
-        # tube_time: float = time.time() - tube_time_start
-
-        # result: bool = rule_fact(statement, sorted_area)
+        result: bool = instance.solve()
         solve_time: float = time.time() - solve_time_start
 
         self._print_result(adding_time, solve_time, True, start_amount, transitive_time)
-
-        # return result
-        return True
+        return result
 
     def _print_result(self, adding_time: float, solve_time: float, result: bool, amount: int,
                       transitive_time: float = None, tube_time: float = None):
@@ -332,94 +292,3 @@ def _shorten_range(intervals: list[Interval], statement: tuple) -> list[Interval
                 break
 
     return intervals[chop_left_index:chop_right_index + 1]
-
-
-def strengthen_interval_height(boundaries: list[float], overlap_map: dict[float, set[Interval]], ivs: list[Interval],
-                               tmp_ivs=None):
-    instance = IntervalListDynamic.get_instance()
-    lower, upper = instance.statement[1]
-    begin, end = get_overlap_index(boundaries, lower, upper)
-
-    # build overlapping first
-    if end == len(boundaries) - 1:
-        end -= 1
-    for i in range(begin, end):
-        point: float = boundaries[i]
-        if not overlap_map[point]:
-            continue
-
-        next_point: float = boundaries[i + 1]
-        iv: Interval = interval_strength_multiple(point, next_point, overlap_map[point])
-        ivs.append(iv)
-        if tmp_ivs is not None:
-            tmp_ivs.add(iv)
-
-    left, right = _check_for_height(ivs)
-    lower, upper = instance.statement[3]
-    if not left:
-        for i in range(begin - 1, -1, -1):
-            point: float = boundaries[i]
-            if not overlap_map[point]:
-                continue
-
-            next_point: float = boundaries[i + 1]
-
-            if instance.left_lower is not None and instance.left_upper is not None \
-                    and next_point <= instance.left_lower and next_point <= instance.left_upper:
-                break
-
-            iv: Interval = interval_strength_multiple(point, next_point, overlap_map[point])
-            ivs.insert(0, iv)
-            if tmp_ivs is not None:
-                tmp_ivs.add(iv)
-
-            if instance.left_lower is not None and instance.left_lower < next_point and iv.begin_other >= lower:
-                instance.left_lower = next_point
-            if instance.left_upper is not None and instance.left_upper < next_point and iv.end_other <= upper:
-                instance.left_upper = next_point
-
-    if not right:
-        for i in range(end, len(boundaries) - 1):
-            point: float = boundaries[i]
-
-            if instance.right_lower is not None and instance.right_upper is not None \
-                    and point >= instance.right_lower and point >= instance.right_upper:
-                break
-
-            if not overlap_map[point]:
-                continue
-
-            next_point: float = boundaries[i + 1]
-            iv: Interval = interval_strength_multiple(point, next_point, overlap_map[point])
-            ivs.insert(0, iv)
-            if tmp_ivs is not None:
-                tmp_ivs.add(iv)
-
-            if instance.right_lower is not None and instance.right_lower > point and iv.begin_other >= lower:
-                instance.right_lower = point
-            if instance.right_upper is not None and instance.right_upper > point and iv.end_other <= upper:
-                instance.right_upper = point
-
-
-def _check_for_height(ivs: list[Interval]) -> tuple[bool, bool]:
-    # This is used when only the overlapping ones are in the model
-    instance = IntervalListDynamic.get_instance()
-    begin, end = instance.statement[1]
-    lower, upper = instance.statement[3]
-
-    first: Interval = ivs[0]
-    last: Interval = ivs[-1]
-
-    if first.overlaps(begin):
-        if first.begin_other >= lower:
-            instance.left_lower = begin
-        if first.end_other <= upper:
-            instance.left_upper = end
-    if last.overlaps(end):
-        if last.begin_other >= lower:
-            instance.right_lower = begin
-        if last.end_other <= upper:
-            instance.right_upper = end
-
-    return instance.left_upper is not None and instance.left_lower is not None, \
-           instance.right_upper is not None and instance.right_lower is not None
