@@ -1,4 +1,4 @@
-import bisect
+import time
 from typing import Union
 
 import intervalstruct.util as util
@@ -40,9 +40,10 @@ class IntervalListDynamic:
         for iv in tmp_ivs:
             self.add(iv)
 
-    def solve(self):
+    def solve(self) -> tuple[bool, float]:
+        start_time: float = time.time()
         if not self._all_intervals:
-            return
+            return False, time.time() - start_time
 
         self._overlap_map.clear()
         self._boundaries = util.init_boundaries(self._all_intervals, self._overlap_map)
@@ -50,7 +51,7 @@ class IntervalListDynamic:
 
         self.strengthen_interval_height()
         self.strengthen_interval_height_sides()
-        return self.check_widest()
+        return self.check_widest(), time.time() - start_time
 
     def strengthen_interval_height(self):
         lower, upper = self.statement[1]
@@ -134,7 +135,7 @@ class IntervalListDynamic:
                 self.right_upper = last.end
 
         return self.left_upper is not None and self.left_lower is not None, \
-            self.right_upper is not None and self.right_lower is not None
+               self.right_upper is not None and self.right_lower is not None
 
     def check_widest(self) -> bool:
         iv: Union[Interval, None] = rules.interval_join_multiple(self._overlapping)

@@ -1,8 +1,9 @@
-from typing import Union
 from functools import reduce
+from typing import Union
+
 from intervalstruct.interval import Interval
-from .util import quality_add, min_quality, quality_times, is_stronger_as
 from .constants import *
+from .util import quality_add, min_quality, quality_times, is_stronger_as
 
 
 def interval_join(interval_a: Interval, interval_b: Interval) -> Union[Interval, None]:
@@ -116,4 +117,4 @@ def rule_fact(statement: tuple, iv: Interval) -> bool:
     interval_y: tuple[float, float] = statement[3]
 
     return iv.enveloping(interval_x[0], interval_x[1]) and iv.begin_other >= interval_y[0] \
-        and iv.end_other <= interval_y[1] and is_stronger_as(iv.quality, quality)
+           and iv.end_other <= interval_y[1] and is_stronger_as(iv.quality, quality)

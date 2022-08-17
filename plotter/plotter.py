@@ -1,10 +1,10 @@
-import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from intervalstruct.interval_list_dynamic import IntervalListDynamic
+import matplotlib.pyplot as plt
 from matplotlib import image as mpimg
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
 from intervalstruct.interval import Interval
+from intervalstruct.interval_list_dynamic import IntervalListDynamic
 from solver.util import fetch_image_name
 
 

@@ -1,26 +1,21 @@
-import bisect
 import time
-from collections import deque
 
 from intervalstruct.interval import Interval
 from intervalstruct.interval_list_dynamic import IntervalListDynamic
 from intervalstruct.interval_list_static import IntervalListStatic
-from intervalstruct.intervaltree import IntervalTree
-from intervalstruct.overlap_map import _better_than_existing, OverlapMap
+from intervalstruct.overlap_map import OverlapMap
 from plotter.plotter import plot_statements, show_plot
 from .dependency_graph import DependencyGraph
+from .rules import transitivity
+
 
 # TODO: Reflexive rule, Add reflexive statements?, Consistency?
 # TODO: Höhe null -> Konstant / ARB rausschmeißen
 
-# TODO: Transitives: routine for left_str, right_str when inserting at index, make sure creation is only done once (keep mapping), Grenzen mit umsetzen
-# TODO: initial solving time, final solving time
-from .rules import transitivity, interval_join
-
 
 class Solver:
     _intervals: dict[tuple] = {}
-    _verbose: int = 4
+    _verbose: int = 1
     _dependency_graph: DependencyGraph = DependencyGraph()
     _tmp_intervals: dict[tuple, set] = {}
     _statement: tuple[str, tuple[float, float], str, tuple[float, float], str]
@@ -94,8 +89,9 @@ class Solver:
         start_amount: int = sum(len(self._tmp_intervals[ivs]) for ivs in self._tmp_intervals)
 
         instance = IntervalListDynamic.get_instance()
-        if instance.solve():
-            self._print_result(adding_time, time.time() - solve_time_start, True, start_amount)
+        result, initial_solving_time = instance.solve()
+        if result:
+            self._print_result(adding_time, time.time() - solve_time_start, initial_solving_time, True, start_amount)
         instance.reset()
 
         # build transitives
@@ -103,32 +99,34 @@ class Solver:
         self._build_transitive_cover(order, statement)
         transitive_time: float = time.time() - transitive_time_start
 
-        result: bool = instance.solve()
+        result, final_solving_time = instance.solve()
         solve_time: float = time.time() - solve_time_start
 
-        self._print_result(adding_time, solve_time, result, start_amount, transitive_time)
+        self._print_result(adding_time, solve_time, initial_solving_time, result, start_amount,
+                           transitive_time, final_solving_time)
         return result
 
-    def _print_result(self, adding_time: float, solve_time: float, result: bool, amount: int,
-                      transitive_time: float = None, tube_time: float = None):
+    def _print_result(self, adding_time: float, solve_time: float, initial_solving_time: float, result: bool,
+                      amount: int, transitive_time: float = None, final_solving_time: float = None):
         instance = IntervalListDynamic.get_instance()
         if self._verbose >= 1:
             adding: str = f"Adding statements time:      {adding_time}s"
             total: str = f"Total solving time:          {solve_time}s"
+            initial_solving: str = f"Initial solving time:        {initial_solving_time}s"
             building: str = ""
             if transitive_time is not None:
                 building = f"Building transitives:        {transitive_time}s"
-            tube: str = ""
-            if tube_time is not None:
-                tube = f"Solving tube time:           {tube_time}s"
-            max_length: int = max(len(total), len(building), len(tube), len(adding))
+            final_solving: str = ""
+            if final_solving_time is not None:
+                final_solving = f"Final solving time:          {final_solving_time}s"
+            max_length: int = max(len(total), len(building), len(final_solving), len(adding), len(initial_solving))
 
             print("\n" + "=" * max_length)
             print(adding)
-            print(total)
+            print(initial_solving)
             print(building)
-            if tube_time is not None:
-                print(tube)
+            print(final_solving)
+            print(total)
             print("=" * max_length + "\n")
 
             print(f"Started with {amount} amount of statements in the model")
@@ -146,9 +144,6 @@ class Solver:
 
         for node in order:
             for pre in self._dependency_graph.get_pre(node):
-                key: tuple[str, str] = pre, node
-                model: IntervalListStatic = self._intervals[key]
-
                 self._build_transitives(pre, node, goal)
                 self._dependency_graph.remove_node(node)
 
@@ -184,64 +179,3 @@ class Solver:
 
     def __str__(self):
         return str(self._intervals)
-
-
-def widest_interval(model, begin: float, end: float) -> list[Interval]:
-    ivs: list[Interval] = model[begin:end]
-    return _strengthen_interval_width_short(ivs, begin) if len(ivs) < 20 else \
-        _strengthen_interval_width_long(ivs, begin, end)
-
-
-def _strengthen_interval_width_short(all_intervals: list[Interval], start: float) \
-        -> list[Interval]:
-    i: int = 0
-    offset: int = 1
-    while i < len(all_intervals):
-        if not all_intervals[i].contains_point(start):
-            return all_intervals[:i]
-        if not i + offset < len(all_intervals) or all_intervals[i].distance_to(all_intervals[i + offset]) > 0:
-            i += 1
-            offset = 1
-            continue
-
-        result = interval_join(all_intervals[i], all_intervals[i + offset])
-        add: bool = _better_than_existing(result, all_intervals)
-        if add:
-            bisect.insort_left(all_intervals, result)
-            continue
-        offset += 1
-
-    return all_intervals
-
-
-def _strengthen_interval_width_long(all_intervals: list[Interval], start: float, end: float) \
-        -> list[Interval]:
-    match_start: deque = deque()
-    for iv in all_intervals:
-        if iv.contains_point(start):
-            match_start.append(iv)
-            continue
-        break
-
-    while len(match_start) > 0:
-        interval: Interval = match_start.popleft()
-        index: int = bisect.bisect_left(all_intervals, interval)
-        for i in range(len(all_intervals) - index):
-            if index + i < len(all_intervals) and interval.distance_to(all_intervals[index + i]) == 0:
-                result = interval_join(interval, all_intervals[index + i])
-                add: bool = _better_than_existing(result, all_intervals)
-
-                if add:
-                    bisect.insort_left(all_intervals, result)
-                    match_start.append(result)
-                continue
-            break
-        if not (interval.begin <= start and interval.end >= end):
-            all_intervals.remove(interval)
-
-    border: int = len(all_intervals)
-    for i in range(len(all_intervals)):
-        if not all_intervals[i].contains_point(start):
-            border = i
-            break
-    return all_intervals[:border]
