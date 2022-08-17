@@ -2,21 +2,25 @@ import bisect
 import time
 from collections import deque
 
+from intervalstruct.interval import Interval
+from intervalstruct.interval_list_dynamic import IntervalListDynamic
 from intervalstruct.interval_list_static import IntervalListStatic
 from intervalstruct.intervaltree import IntervalTree
-from intervalstruct.interval_list_dynamic import IntervalListDynamic
+from intervalstruct.overlap_map import _better_than_existing, OverlapMap
 from plotter.plotter import plot_statements, show_plot
 from .dependency_graph import DependencyGraph
-from .rules import *
 
 # TODO: Reflexive rule, Add reflexive statements?, Consistency?
 # TODO: Höhe null -> Konstant / ARB rausschmeißen
-from .util import get_overlap_index
 
+# TODO: Transitives: routine for left_str, right_str when inserting at index, make sure creation is only done once (keep mapping), Grenzen mit umsetzen
 # TODO: initial solving time, final solving time
+from .rules import transitivity, interval_join
+
+
 class Solver:
     _intervals: dict[tuple] = {}
-    _verbose: int = 1
+    _verbose: int = 4
     _dependency_graph: DependencyGraph = DependencyGraph()
     _tmp_intervals: dict[tuple, set] = {}
     _statement: tuple[str, tuple[float, float], str, tuple[float, float], str]
@@ -64,10 +68,8 @@ class Solver:
 
         influencing: str = statement[0]
         influenced: str = statement[4]
-        quality: str = statement[2]
-        x_lower, x_upper = statement[1]
         y_lower, y_upper = statement[3]
-        order, paths = self._dependency_graph.setup(influencing, influenced)
+        order = self._dependency_graph.setup(influencing, influenced)
 
         used_variables: list[str] = order + [influencing, influenced]
         if (influencing, influenced) not in self._tmp_intervals:
@@ -78,10 +80,10 @@ class Solver:
                                         iv.turn_interval().overlaps(y_lower, y_upper)} \
                 if key[1] == influenced else self._tmp_intervals[key]
             if key[1] == influenced and key[0] != influencing:
-                self._intervals[key] = IntervalTree(intervals)
+                self._intervals[key] = OverlapMap(intervals)
                 continue
             if key[1] == influenced and key[0] == influencing:
-                self._intervals[key] = IntervalListDynamic(statement, intervals, paths)
+                self._intervals[key] = IntervalListDynamic(statement, intervals)
                 continue
             self._intervals[key] = IntervalListStatic(intervals)
         adding_time: float = time.time() - adding_time_start
@@ -104,7 +106,7 @@ class Solver:
         result: bool = instance.solve()
         solve_time: float = time.time() - solve_time_start
 
-        self._print_result(adding_time, solve_time, True, start_amount, transitive_time)
+        self._print_result(adding_time, solve_time, result, start_amount, transitive_time)
         return result
 
     def _print_result(self, adding_time: float, solve_time: float, result: bool, amount: int,
@@ -141,95 +143,38 @@ class Solver:
 
     def _build_transitive_cover(self, order: list[str], statement: tuple):
         goal: str = statement[4]
-        height_build: set[tuple] = set()
 
         for node in order:
             for pre in self._dependency_graph.get_pre(node):
                 key: tuple[str, str] = pre, node
                 model: IntervalListStatic = self._intervals[key]
 
-                if key not in height_build:
-                    model.strengthen_interval_height()
-                    model.strengthen_interval_height_sides()
-                    height_build.add(key)
-
                 self._build_transitives(pre, node, goal)
                 self._dependency_graph.remove_node(node)
 
     def _build_transitives(self, a: str, b: str, c: str):
         model_ab: IntervalListStatic = self._intervals[(a, b)]
-        model_bc: IntervalTree = self._intervals[(b, c)]
+        model_bc: OverlapMap = self._intervals[(b, c)]
+        model_bc.initiate()
         if (a, c) not in self._intervals:
-            self._intervals[(a, c)] = IntervalTree()
+            self._intervals[(a, c)] = OverlapMap()
 
-        for interval in model_ab.intervals():
-            overlapping: list[Interval] = model_bc[interval.begin_other:interval.end_other]
-            # TODO: build widths, dont add them / only when more nodes use this?
-            overlapping = self.strengthen_interval_width(overlapping, interval.begin_other, interval.end_other)
+        if model_ab.intervals_created():
+            for interval in model_ab.intervals():
+                self.create_transitive_from_interval(interval, model_bc, a, c)
+            return
 
-            for overlapped_interval in overlapping:
-                rule: Interval = transitivity(interval, overlapped_interval)
-                added: bool = self._intervals[(a, c)].add(rule)
-                if added:
-                    self._dependency_graph.add(a, c, check=False)
+        model_ab.interval_height_and_transitives(self, model_bc, a, c)
 
-    def strengthen_interval_width(self, sorted_ivs: list[Interval], start: float, end: float) \
-            -> list[Interval]:
-        return self._strengthen_interval_width_short(sorted_ivs, start) if len(sorted_ivs) < 20 else \
-            self._strengthen_interval_width_long(sorted_ivs, start, end)
-
-    def _strengthen_interval_width_short(self, all_intervals: list[Interval], start: float) \
-            -> list[Interval]:
-        i: int = 0
-        offset: int = 1
-        while i < len(all_intervals):
-            if not all_intervals[i].contains_point(start):
-                return all_intervals[:i]
-            if not i + offset < len(all_intervals) or all_intervals[i].distance_to(all_intervals[i + offset]) > 0:
-                i += 1
-                offset = 1
-                continue
-
-            result = interval_join(all_intervals[i], all_intervals[i + offset])
-            add: bool = better_than_existing(result, all_intervals)
-            if add:
-                bisect.insort_left(all_intervals, result)
-                continue
-            offset += 1
-
-        return all_intervals
-
-    def _strengthen_interval_width_long(self, all_intervals: list[Interval], start: float, end: float) \
-            -> list[Interval]:
-        match_start: deque = deque()
-        for iv in all_intervals:
-            if iv.contains_point(start):
-                match_start.append(iv)
-                continue
-            break
-
-        while len(match_start) > 0:
-            interval: Interval = match_start.popleft()
-            index: int = bisect.bisect_left(all_intervals, interval)
-            for i in range(len(all_intervals) - index):
-                if index + i < len(all_intervals) and interval.distance_to(all_intervals[index + i]) == 0:
-                    result = interval_join(interval, all_intervals[index + i])
-                    add: bool = better_than_existing(result, all_intervals)
-
-                    if add:
-                        bisect.insort_left(all_intervals, result)
-                        match_start.append(result)
-                    continue
-                break
-            if not (interval.begin <= start and interval.end >= end):
-                all_intervals.remove(interval)
-
-        border: int = len(all_intervals)
-        for i in range(len(all_intervals)):
-            if not all_intervals[i].contains_point(start):
-                border = i
-                break
-        return all_intervals[:border]
+    def create_transitive_from_interval(self, iv: Interval, model: OverlapMap, a: str, c: str):
+        overlapping = model.widest_interval(iv.begin_other, iv.end_other)
+        if overlapping is None:
+            return
+        rule: Interval = transitivity(iv, overlapping)
+        added: bool = self._intervals[(a, c)].add(rule)
+        if added:
+            self._dependency_graph.add(a, c, check=False)
+        return rule
 
     def __len__(self):
         length: int = 0
@@ -241,54 +186,62 @@ class Solver:
         return str(self._intervals)
 
 
-def better_than_existing(interval: Interval, intervals: list[Interval]) -> bool:
-    if interval is None:
-        return False
-    return [iv for iv in intervals if iv.stronger_as(interval)] == []
+def widest_interval(model, begin: float, end: float) -> list[Interval]:
+    ivs: list[Interval] = model[begin:end]
+    return _strengthen_interval_width_short(ivs, begin) if len(ivs) < 20 else \
+        _strengthen_interval_width_long(ivs, begin, end)
 
 
-def _shorten_range(intervals: list[Interval], statement: tuple) -> list[Interval]:
-    interval_x: tuple[float, float] = statement[1]
-    interval_y: tuple[float, float] = statement[3]
+def _strengthen_interval_width_short(all_intervals: list[Interval], start: float) \
+        -> list[Interval]:
+    i: int = 0
+    offset: int = 1
+    while i < len(all_intervals):
+        if not all_intervals[i].contains_point(start):
+            return all_intervals[:i]
+        if not i + offset < len(all_intervals) or all_intervals[i].distance_to(all_intervals[i + offset]) > 0:
+            i += 1
+            offset = 1
+            continue
 
-    min_index: int = 0
-    for i in range(len(intervals)):
-        if intervals[i].contains_point(interval_x[0]):
-            min_index = i
+        result = interval_join(all_intervals[i], all_intervals[i + offset])
+        add: bool = _better_than_existing(result, all_intervals)
+        if add:
+            bisect.insort_left(all_intervals, result)
+            continue
+        offset += 1
+
+    return all_intervals
+
+
+def _strengthen_interval_width_long(all_intervals: list[Interval], start: float, end: float) \
+        -> list[Interval]:
+    match_start: deque = deque()
+    for iv in all_intervals:
+        if iv.contains_point(start):
+            match_start.append(iv)
+            continue
+        break
+
+    while len(match_start) > 0:
+        interval: Interval = match_start.popleft()
+        index: int = bisect.bisect_left(all_intervals, interval)
+        for i in range(len(all_intervals) - index):
+            if index + i < len(all_intervals) and interval.distance_to(all_intervals[index + i]) == 0:
+                result = interval_join(interval, all_intervals[index + i])
+                add: bool = _better_than_existing(result, all_intervals)
+
+                if add:
+                    bisect.insort_left(all_intervals, result)
+                    match_start.append(result)
+                continue
             break
+        if not (interval.begin <= start and interval.end >= end):
+            all_intervals.remove(interval)
 
-    max_index: int = len(intervals) - 1
-    for i in range(len(intervals) - 1, -1, -1):
-        if intervals[i].contains_point(interval_x[1]):
-            max_index = i
+    border: int = len(all_intervals)
+    for i in range(len(all_intervals)):
+        if not all_intervals[i].contains_point(start):
+            border = i
             break
-
-    chop_right_index: int = len(intervals) - 1
-    y_begin: bool = False
-    y_end: bool = False
-    if max_index != -1:
-        for i in range(max_index, len(intervals) - 1):
-            if intervals[i].begin_other >= interval_y[0]:
-                y_begin = True
-            if intervals[i].end_other <= interval_y[1]:
-                y_end = True
-            if intervals[i].distance_to(intervals[i + 1]) > 0 or intervals[i].quality == QUALITY_ARB \
-                    or (y_begin and y_end):
-                chop_right_index = i
-                break
-
-    chop_left_index: int = 0
-    y_begin: bool = False
-    y_end: bool = False
-    if min_index != -1:
-        for i in range(min_index, 0, -1):
-            if intervals[i].begin_other >= interval_y[0]:
-                y_begin = True
-            if intervals[i].end_other <= interval_y[1]:
-                y_end = True
-            if intervals[i].distance_to(intervals[i - 1]) > 0 or intervals[i].quality == QUALITY_ARB \
-                    or (y_begin and y_end):
-                chop_left_index = i
-                break
-
-    return intervals[chop_left_index:chop_right_index + 1]
+    return all_intervals[:border]

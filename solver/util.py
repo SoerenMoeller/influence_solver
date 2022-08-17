@@ -1,4 +1,4 @@
-from constants import *
+from .constants import *
 
 
 def fetch_image_name(quality: str, color: str):

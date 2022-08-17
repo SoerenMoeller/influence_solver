@@ -96,7 +96,7 @@ def interval_join_multiple(ivs: list[Interval]) -> Union[Interval, None]:
     begin_other: float = min(iv.begin_other for iv in ivs)
     end_other: float = max(iv.end_other for iv in ivs)
 
-    return Interval(ivs[0].begin, ivs[1].end, quality, begin_other, end_other)
+    return Interval(ivs[0].begin, ivs[-1].end, quality, begin_other, end_other)
 
 
 def transitivity(interval_a: Interval, interval_b: Interval) -> Union[Interval, None]:
@@ -115,5 +115,5 @@ def rule_fact(statement: tuple, iv: Interval) -> bool:
     interval_x: tuple[float, float] = statement[1]
     interval_y: tuple[float, float] = statement[3]
 
-    return iv.enveloping(interval_x[0], interval_x[1])  and iv.begin_other >= interval_y[0] \
+    return iv.enveloping(interval_x[0], interval_x[1]) and iv.begin_other >= interval_y[0] \
         and iv.end_other <= interval_y[1] and is_stronger_as(iv.quality, quality)

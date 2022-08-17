@@ -8,7 +8,7 @@ class DependencyGraph:
     def __init__(self):
         self._dependency_graph: dict[str, set[str]] = {}
 
-    def setup(self, start: str, end: str) -> tuple[list[str], int]:
+    def setup(self, start: str, end: str) -> list[str]:
         self._start = start
         self._end = end
 
@@ -18,12 +18,8 @@ class DependencyGraph:
 
         # build an order on the variables
         order: list[str] = self._bfs()
-        paths: int = 0
-        for node in order:
-            if end in self._dependency_graph[node]:
-                paths += 1
 
-        return order, paths
+        return order
 
     def add(self, a: str, b: str, check: bool = True):
         if a not in self._dependency_graph:
