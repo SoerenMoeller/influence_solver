@@ -15,7 +15,8 @@ from .rules import transitivity
 
 class Solver:
     _intervals: dict[tuple] = {}
-    _verbose: int = 1
+    _verbose: int = 4
+    _verbose: int = 4
     _dependency_graph: DependencyGraph = DependencyGraph()
     _tmp_intervals: dict[tuple, set] = {}
     _statement: tuple[str, tuple[float, float], str, tuple[float, float], str]
@@ -124,8 +125,10 @@ class Solver:
             print("\n" + "=" * max_length)
             print(adding)
             print(initial_solving)
-            print(building)
-            print(final_solving)
+            if building:
+                print(building)
+            if final_solving:
+                print(final_solving)
             print(total)
             print("=" * max_length + "\n")
 

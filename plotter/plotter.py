@@ -1,3 +1,5 @@
+import os
+
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 from matplotlib import image as mpimg
@@ -54,7 +56,7 @@ def _plot_axis(axis, index: int, statement: tuple, intervals: dict, influence: t
 
     # plot the statements
     for interval in statements:
-        plot_statement(axis[index], interval, offset_x, offset_y)
+        plot_statement(axis[index], interval, offset_x)
 
     # plot optional statement
     if statement is not None and (statement[0], statement[4]) == influence:
@@ -64,10 +66,10 @@ def _plot_axis(axis, index: int, statement: tuple, intervals: dict, influence: t
 
         statement_interval: Interval = Interval(interval_x[0], interval_x[1], quality,
                                                 interval_y[0], interval_y[1])
-        plot_statement(axis[index], statement_interval, offset_x, offset_y, "red")
+        plot_statement(axis[index], statement_interval, offset_x, "red")
 
 
-def plot_statement(ax, statement: Interval, offset_x: float, offset_y: float, color="black"):
+def plot_statement(ax, statement: Interval, offset_x: float, color="black"):
     bottom: float = statement.begin_other
     left: float = statement.begin
     width: float = statement.end - statement.begin
@@ -83,7 +85,10 @@ def plot_statement(ax, statement: Interval, offset_x: float, offset_y: float, co
     # plot the image of the symbol
     position_x: float = left + width / 2
     position_y: float = bottom + height / 2
-    arr_lena = mpimg.imread(f"./plotter/{fetch_image_name(statement.quality, color)}")
+    dir_name = os.path.dirname
+    parent_dir: str = dir_name(dir_name(os.path.realpath(__file__)))
+    path: str = os.path.join(parent_dir, "plotter", fetch_image_name(statement.quality, color))
+    arr_lena = mpimg.imread(path)
     zoom: float = 0.2
     if width / offset_x < 0.1:
         zoom = 0.1
