@@ -71,6 +71,8 @@ class IntervalListDynamic:
             self._all_intervals.add(iv)
             self._overlapping.append(iv)
 
+        if not self._x_set:
+            return
         left, right = self._check_for_height()
         lower, upper = self.statement[3]
         if not left:

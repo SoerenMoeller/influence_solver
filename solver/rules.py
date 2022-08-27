@@ -89,6 +89,8 @@ def interval_strength_multiple(begin: float, end: float, ivs: set[Interval]) -> 
 
 
 def interval_join_multiple(ivs: list[Interval]) -> Union[Interval, None]:
+    if not ivs:
+        return None
     for i in range(len(ivs) - 1):
         if ivs[i].distance_to(ivs[i + 1]) > 0:
             return None

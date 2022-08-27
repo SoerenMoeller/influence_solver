@@ -16,12 +16,13 @@ from .rules import transitivity
 class Solver:
     _intervals: dict[tuple] = {}
     _verbose: int = 4
-    _verbose: int = 4
     _dependency_graph: DependencyGraph = DependencyGraph()
     _tmp_intervals: dict[tuple, set] = {}
     _statement: tuple[str, tuple[float, float], str, tuple[float, float], str]
 
-    def __init__(self, intervals=None):
+    def __init__(self, intervals=None, v=None):
+        if v is not None:
+            self._verbose = v
         if intervals is None:
             return
 

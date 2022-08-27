@@ -6,7 +6,7 @@ from statistics import mean
 from solver.constants import QUALITY_CONS, QUALITY_ARB, QUALITY_ANTI, QUALITY_MONO
 
 
-def build_model_from_csv(name: str, granularity: float) -> list[tuple]:
+def build_model_from_csv(name: str, width_amount: int, height_amount: int) -> list[tuple]:
     data: list[tuple[tuple, list[tuple]]] = _read_csv(name)
 
     model: list[tuple] = []
@@ -18,12 +18,15 @@ def build_model_from_csv(name: str, granularity: float) -> list[tuple]:
         x_points: list[float] = [p[0] for p in points]
         y_points: list[float] = [p[1] for p in points]
         greatest_end: float = x_points[-1]
+        smallest_start: float = x_points[0]
+        granularity_x: float = (greatest_end - smallest_start) / width_amount
+        granularity_y: float = (max(y_points) - min(y_points)) / height_amount
         current: float = points[0][0]
         statements: list[tuple] = []
         building: bool = True
         while building:
-            end: float = current + granularity
-            if current + granularity > greatest_end:
+            end: float = current + granularity_x
+            if current + granularity_x > greatest_end:
                 end = greatest_end
                 building = False
 
@@ -59,22 +62,24 @@ def build_model_from_csv(name: str, granularity: float) -> list[tuple]:
                             break
 
             y_mean: float = mean(y_points[first_index:last_index])
-            half_gran: float = granularity // 2
+            half_gran: float = granularity_y // 2
             statement: tuple = (a, (current, end), quality, (y_mean - half_gran, y_mean + half_gran), b)
             statements.append(statement)
 
-            current += 2 / 3 * granularity
+            current += 2 / 3 * granularity_x
 
         for i in range(len(statements) - 1):
             current: tuple = statements[i]
             neighbor: tuple = statements[i + 1]
 
             if current[3][1] < neighbor[3][0]:
-                statements[i] = (current[0], current[1], current[2], (current[3][0], neighbor[3][0] + granularity // 2),
-                                 current[4])
+                statements[i] = (
+                    current[0], current[1], current[2], (current[3][0], neighbor[3][0] + granularity_y // 2),
+                    current[4])
             elif current[3][0] > neighbor[3][1]:
-                statements[i] = (current[0], current[1], current[2], (neighbor[3][1] - granularity // 2, current[3][1]),
-                                 current[4])
+                statements[i] = (
+                    current[0], current[1], current[2], (neighbor[3][1] - granularity_y // 2, current[3][1]),
+                    current[4])
 
         model.extend(statements)
     return model
