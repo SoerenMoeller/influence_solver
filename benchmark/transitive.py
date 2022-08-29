@@ -12,7 +12,8 @@ def create_transitive_test(amount: int, amount_per_step: int, width: int) -> tup
         var: str = f"b(0, {i})"
         prev.append(var)
         for j in range(amount_per_step):
-            iv: tuple = (initial, (j, j + 1), quality, (0, 1), var)
+            y_interval = (j, j + 1) if quality == QUALITY_MONO else (amount_per_step - 1 - j, amount_per_step - j)
+            iv: tuple = (initial, (j, j + 1), quality, y_interval, var)
             statements.add(iv)
 
     for i in range(1, amount):
@@ -24,7 +25,8 @@ def create_transitive_test(amount: int, amount_per_step: int, width: int) -> tup
                 quality = QUALITY_ANTI if j % 2 == 0 else QUALITY_MONO
             var: str = f"b({i}, {j})"
             for k in range(amount_per_step):
-                iv: tuple = (prev[j], (k, k + 1), quality, (0, 1), var)
+                y_interval = (k, k + 1) if quality == QUALITY_MONO else (amount_per_step - 1 - k, amount_per_step - k)
+                iv: tuple = (prev[j], (k, k + 1), quality, y_interval, var)
                 statements.add(iv)
             prev[j] = var
 
@@ -37,7 +39,9 @@ def create_transitive_test(amount: int, amount_per_step: int, width: int) -> tup
         var: str = f"b({amount - 1}, {i})"
         prev.append(var)
         for j in range(amount_per_step):
-            iv: tuple = (var, (j, j + 1), quality, (0, 1), last)
+            y_interval = (j, j + 1) if quality == QUALITY_MONO else (amount_per_step - 1 - j, amount_per_step - j)
+            iv: tuple = (var, (j, j + 1), quality, y_interval, last)
             statements.add(iv)
 
-    return statements, (initial, (0, 1), QUALITY_CONS, (0, 1), last)
+    return statements, (initial, (0, amount_per_step), QUALITY_CONS, (0, amount_per_step), last)
+

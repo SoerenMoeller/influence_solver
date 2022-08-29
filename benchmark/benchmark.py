@@ -6,13 +6,13 @@ from solver.solver import Solver
 from transitive import create_transitive_test
 
 BORDER: int = 10
-STARTING_GRAN: int = 20
+STEPS: int = 500
 
 
 def main():
-    print("============================== Starting Benchmark... ==============================")
+    print("============================== Starting Benchmark... ==============================\n")
     print("< Starting Altitude-Barometer-Pressure Benchmark...")
-    gran: int = STARTING_GRAN
+    gran: int = STEPS
     for i in range(1, BORDER):
         start_time: float = time.time()
         statements: list[tuple] = build_model_from_csv("altitude_pressure", gran, 7)
@@ -21,11 +21,11 @@ def main():
         print(f"Model with {len(statements)} statements took {time.time() - start_time} seconds ", end="")
         print(f"and {'could' if result else 'could not'} be solved.")
 
-        gran *= 2
-    print("> Finished Altitude-Barometer-Pressure Benchmark!")
+        gran += STEPS
+    print("> Finished Altitude-Barometer-Pressure Benchmark!\n")
 
     print("< Starting Angle-Intensity Benchmark...")
-    gran: int = STARTING_GRAN
+    gran: int = STEPS * 2
     for i in range(1, BORDER):
         start_time: float = time.time()
         statements: list[tuple] = build_model_from_csv("angle_intensity", gran, 7)
@@ -34,20 +34,20 @@ def main():
         print(f"Model with {len(statements)} statements took {time.time() - start_time} seconds ", end="")
         print(f"and {'could' if result else 'could not'} be solved.")
 
-        gran *= 2
-    print("> Finished Angle-Intensity Benchmark!")
+        gran += STEPS * 2
+    print("> Finished Angle-Intensity Benchmark!\n")
 
     print("< Starting Transitivity Benchmark...")
-    for i in range(1, 20, 2):
+    for i in range(1, 40, 4):
         start_time: float = time.time()
-        statements, statement = create_transitive_test(i, 500, 3)
+        statements, statement = create_transitive_test(i, STEPS, 3)
         solver: Solver = Solver(statements, v=0)
         result: bool = solver.solve(statement)
         print(f"Model with {len(statements)} statements took {time.time() - start_time} seconds ", end="")
         print(f"and {'could' if result else 'could not'} be solved.")
-
-        gran *= 2
-    print("> Finished Transitivity Benchmark!")
+        
+    print("> Finished Transitivity Benchmark!\n")
+    print("=============================== Finishes Benchmark! ===============================")
 
 
 if __name__ == "__main__":
