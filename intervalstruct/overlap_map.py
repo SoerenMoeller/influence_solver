@@ -33,6 +33,12 @@ class OverlapMap:
             iv: Interval = rules.interval_strength_multiple(point, next_point, self._overlap_map[point])
             self._x_set.append(iv)
 
+    def add(self, iv: Interval):
+        if iv is None:
+            return False
+        self._ivs.add(iv)
+        return True
+
     def _overlap(self, begin: float, end: float) -> list[Interval]:
         index = bisect.bisect_left(self._x_set, Interval(begin, begin, QUALITY_CONS, 0, 0))
 

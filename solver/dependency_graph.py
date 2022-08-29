@@ -64,6 +64,8 @@ class DependencyGraph:
 
         while len(queue) > 0:
             node = queue.popleft()
+            if node not in self._dependency_graph:
+                continue
             for child in self._dependency_graph[node]:
                 if child not in visited:
                     order.append(child)
