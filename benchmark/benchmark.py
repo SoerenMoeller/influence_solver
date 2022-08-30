@@ -34,16 +34,17 @@ def main():
         print(f"Model with {len(statements)} statements took {time.time() - start_time} seconds ", end="")
         print(f"and {'could' if result else 'could not'} be solved.")
 
-        gran += STEPS * 2
+        gran += STEPS * 15
     print("> Finished Angle-Intensity Benchmark!\n")
 
     print("< Starting Transitivity Benchmark...")
-    for i in range(1, 40, 4):
+    for i in range(10, 50, 4):
         start_time: float = time.time()
-        statements, statement = create_transitive_test(i, STEPS * 4, 3)
+        statements, statement = create_transitive_test(i, STEPS * 8, 3)
         solver: Solver = Solver(statements, v=0)
         result: bool = solver.solve(statement)
-        print(f"Model with {len(statements)} statements took {time.time() - start_time} seconds ", end="")
+        print(f"Model with {len(statements)} statements and {i} transitive steps took {time.time() - start_time} "
+              f"seconds ", end="")
         print(f"and {'could' if result else 'could not'} be solved.")
 
     print("> Finished Transitivity Benchmark!\n")
