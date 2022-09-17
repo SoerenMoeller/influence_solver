@@ -60,7 +60,7 @@ class IntervalListDynamic:
         # build overlapping first
         if end > len(self._boundaries):
             end = len(self._boundaries)
-        for i in range(begin, end):
+        for i in range(begin, end - 1):
             point: float = self._boundaries[i]
             if not self._overlap_map[point]:
                 continue
