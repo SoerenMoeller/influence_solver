@@ -16,7 +16,7 @@ Changed:
 from solver.util import is_stronger_as
 
 """
-intervaltree: A mutable, self-balancing intervalstruct tree for Python 2 and 3.
+intervaltree: A mutable, self-balancing statementstruct tree for Python 2 and 3.
 Queries may be by point, by range overlap, or by range envelopment.
 
 Interval class
@@ -41,21 +41,21 @@ from collections import namedtuple
 
 
 # noinspection PyBroadException
-class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_other', 'end_other'])):
+class Statement(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_y', 'end_y'])):
     __slots__ = ()  # Saves memory, avoiding the need to create __dict__ for each interval
 
-    def __new__(cls, begin, end, quality, begin_other, end_other):
-        return super(Interval, cls).__new__(cls, begin, end, quality, begin_other, end_other)
+    def __new__(cls, begin, end, quality, begin_y, end_y):
+        return super(Statement, cls).__new__(cls, begin, end, quality, begin_y, end_y)
 
     # added
     def turn_interval(self):
-        return Interval(self.begin_other, self.end_other, self.quality, self.begin, self.end)
+        return Statement(self.begin_y, self.end_y, self.quality, self.begin, self.end)
 
     # added
     def stronger_as(self, iv, height=None):
         return is_stronger_as(self.quality, iv.quality) and self.begin <= iv.begin and self.end >= iv.end and \
-               ((self.begin_other >= iv.begin_other and self.end_other <= iv.end_other) or
-                (height is not None and height[0] <= self.begin_other and height[1] >= self.end_other))
+               ((self.begin_y >= iv.begin_other and self.end_y <= iv.end_other) or
+                (height is not None and height[0] <= self.begin_y and height[1] >= self.end_y))
 
     # added
     def enveloped_by(self, begin, end=None):
@@ -70,16 +70,19 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
         return begin >= self.begin and end <= self.end
 
     # added
-    def change(self, begin=None, end=None, quality=None, begin_other=None, end_other=None):
-        return Interval(begin if begin is not None else self.begin,
-                        end if end is not None else self.end,
-                        quality if quality is not None else self.quality,
-                        begin_other if begin_other is not None else self.begin_other,
-                        end_other if end_other is not None else self.end_other)
+    def change(self, begin=None, end=None, quality=None, begin_y=None, end_y=None):
+        return Statement(begin if begin is not None else self.begin,
+                         end if end is not None else self.end,
+                         quality if quality is not None else self.quality,
+                         begin_y if begin_y is not None else self.begin_y,
+                         end_y if end_y is not None else self.end_y)
+
+    def exceeds_height(self, begin, end):
+        return self.begin_y < begin or self.end_y > end
 
     def overlaps(self, begin, end=None):
         """
-        Whether the intervalstruct overlaps the given point, range or Interval.
+        Whether the statementstruct overlaps the given point, range or Interval.
         :param begin: beginning point of the range, or the point, or an Interval
         :param end: end point of the range. Optional if not testing ranges.
         :return: True or False
@@ -99,8 +102,8 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
 
     def stronger_as(self, iv, height=None):
         return is_stronger_as(self.quality, iv.quality) and \
-               (self.begin_other >= iv.begin_other and self.end_other <= iv.end_other
-                or (height is not None and height[0] >= self.begin_other and height[1] <= self.end_other))
+               (self.begin_y >= iv.begin_y and self.end_y <= iv.end_y
+                or (height is not None and height[0] >= self.begin_y and height[1] <= self.end_y))
 
     def overlap_size(self, begin, end=None):
         """
@@ -108,7 +111,7 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
         :param begin: beginning point of the range, or the point, or an Interval
         :param end: end point of the range. Optional if not testing ranges.
         :return: Return the overlap size, None if not overlap is found
-        :rtype: depends on the given input (e.g., int will be returned for int intervalstruct and timedelta for
+        :rtype: depends on the given input (e.g., int will be returned for int statementstruct and timedelta for
         datetime intervals)
         """
         overlaps = self.overlaps(begin, end)
@@ -181,7 +184,7 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
 
     def is_null(self):
         """
-        Whether this equals the null intervalstruct.
+        Whether this equals the null statementstruct.
         :return: True if end <= begin else False
         :rtype: bool
         """
@@ -217,8 +220,8 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
                 self.begin == other.begin and
                 self.end == other.end and
                 self.quality == other.quality and
-                self.begin_other == other.begin_other and
-                self.end_other == other.end_other
+                self.begin_y == other.begin_other and
+                self.end_y == other.end_other
         )
 
     def __cmp__(self, other):
@@ -343,7 +346,7 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
         :return: reconstruction info
         :rtype: tuple
         """
-        return self.begin, self.end, self.quality, self.begin_other, self.end_other
+        return self.begin, self.end, self.quality, self.begin_y, self.end_y
 
     def __repr__(self):
         """
@@ -357,12 +360,12 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
         else:
             s_begin = repr(self.begin)
             s_end = repr(self.end)
-        if isinstance(self.begin_other, Number):
-            s_begin_other = str(self.begin_other)
-            s_end_other = str(self.end_other)
+        if isinstance(self.begin_y, Number):
+            s_begin_other = str(self.begin_y)
+            s_end_other = str(self.end_y)
         else:
-            s_begin_other = repr(self.begin_other)
-            s_end_other = repr(self.end_other)
+            s_begin_other = repr(self.begin_y)
+            s_end_other = repr(self.end_y)
         return f"Interval({s_begin}, {s_end}, {self.quality}, {s_begin_other}, {s_end_other})"
 
     __str__ = __repr__
@@ -371,9 +374,9 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
         """
         Shallow copy.
         :return: copy of self
-        :rtype: Interval
+        :rtype: Statement
         """
-        return Interval(self.begin, self.end, self.quality, self.begin_other, self.end_other)
+        return Statement(self.begin, self.end, self.quality, self.begin_y, self.end_y)
 
     def __reduce__(self):
         """
@@ -381,4 +384,4 @@ class Interval(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_oth
         :return: pickle data
         :rtype: tuple
         """
-        return Interval, self._get_fields()
+        return Statement, self._get_fields()

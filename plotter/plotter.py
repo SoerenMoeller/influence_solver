@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 from matplotlib import image as mpimg
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
-from intervalstruct.interval import Interval
-from intervalstruct.interval_list_dynamic import IntervalListDynamic
 from solver.util import fetch_image_name
+from statementstruct.statement import Statement
+from statementstruct.statement_list_dynamic import StatementListDynamic
 
 
 def plot_statements(intervals: dict, influences: list[tuple[str, str]]):
@@ -22,7 +22,7 @@ def plot_statements(intervals: dict, influences: list[tuple[str, str]]):
                         wspace=0.4,
                         hspace=1)
 
-    instance = IntervalListDynamic.get_instance()
+    instance = StatementListDynamic.get_instance()
     for index, influence in enumerate(influences):
         if influence not in intervals:
             continue
@@ -32,9 +32,9 @@ def plot_statements(intervals: dict, influences: list[tuple[str, str]]):
 
 def _plot_axis(axis, index: int, statement: tuple, intervals: dict, influence: tuple[str, str]):
     if type(intervals[influence]) == set:
-        statements: list[Interval] = sorted(intervals[influence])
+        statements: list[Statement] = sorted(intervals[influence])
     else:
-        statements: list[Interval] = intervals[influence].intervals()
+        statements: list[Statement] = intervals[influence].intervals()
 
     if len(statements) == 0:
         return
@@ -64,12 +64,12 @@ def _plot_axis(axis, index: int, statement: tuple, intervals: dict, influence: t
         interval_x: tuple[float, float] = statement[1]
         interval_y: tuple[float, float] = statement[3]
 
-        statement_interval: Interval = Interval(interval_x[0], interval_x[1], quality,
-                                                interval_y[0], interval_y[1])
+        statement_interval: Statement = Statement(interval_x[0], interval_x[1], quality,
+                                                  interval_y[0], interval_y[1])
         plot_statement(axis[index], statement_interval, offset_x, "red")
 
 
-def plot_statement(ax, statement: Interval, offset_x: float, color="black"):
+def plot_statement(ax, statement: Statement, offset_x: float, color="black"):
     bottom: float = statement.begin_other
     left: float = statement.begin
     width: float = statement.end - statement.begin

@@ -40,3 +40,8 @@ TIMES: dict = {
                   QUALITY_CONS: QUALITY_ARB,
                   QUALITY_ARB: QUALITY_ARB},
 }
+
+SEARCH_LEFT: str = "left"
+SEARCH_RIGHT: str = "right"
+CORRECT_UPPER: str = "upper"
+CORRECT_LOWER: str = "lower"
