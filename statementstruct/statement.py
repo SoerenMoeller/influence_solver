@@ -220,8 +220,8 @@ class Statement(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_y'
                 self.begin == other.begin and
                 self.end == other.end and
                 self.quality == other.quality and
-                self.begin_y == other.begin_other and
-                self.end_y == other.end_other
+                self.begin_y == other.begin_y and
+                self.end_y == other.end_y
         )
 
     def __cmp__(self, other):

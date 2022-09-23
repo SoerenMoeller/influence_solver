@@ -41,7 +41,7 @@ def _plot_axis(axis, index: int, statement: tuple, intervals: dict, influence: t
 
     # setup axis
     min_x, max_x = min(iv.begin for iv in statements), max(iv.end for iv in statements)
-    min_y, max_y = min(iv.begin_other for iv in statements), max(iv.end_other for iv in statements)
+    min_y, max_y = min(iv.begin_y for iv in statements), max(iv.end_y for iv in statements)
     if statement is not None and (statement[0], statement[4]) == influence:
         min_x = min(min_x, statement[1][0])
         max_x = max(max_x, statement[1][1])
@@ -70,10 +70,10 @@ def _plot_axis(axis, index: int, statement: tuple, intervals: dict, influence: t
 
 
 def plot_statement(ax, statement: Statement, offset_x: float, color="black"):
-    bottom: float = statement.begin_other
+    bottom: float = statement.begin_y
     left: float = statement.begin
     width: float = statement.end - statement.begin
-    height: float = statement.end_other - statement.begin_other
+    height: float = statement.end_y - statement.begin_y
 
     rect = mpatches.Rectangle((left, bottom), width, height,
                               fill=False,
