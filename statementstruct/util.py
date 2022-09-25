@@ -16,27 +16,28 @@ def get_overlap_index(boundaries: list[float], begin, end=None) -> tuple[int, in
     return left, right
 
 
-def init_boundaries(ivs: set[Statement], overlap_map: dict[float, set[Statement]]) -> list[float]:
+def init_boundaries(statements: set[Statement], overlap_map: dict[float, set[Statement]]) -> list[float]:
+    # init bounds
     tmp_boundaries: set[float] = set()
-    for iv in ivs:
-        if iv.begin not in overlap_map:
-            overlap_map[iv.begin] = set()
-            tmp_boundaries.add(iv.begin)
-        if iv.end not in overlap_map:
-            overlap_map[iv.end] = set()
-            tmp_boundaries.add(iv.end)
-        overlap_map[iv.begin].add(iv)
-        overlap_map[iv.end].add(iv)
+    for st in statements:
+        if st.begin not in overlap_map:
+            overlap_map[st.begin] = set()
+            tmp_boundaries.add(st.begin)
+        if st.end not in overlap_map:
+            overlap_map[st.end] = set()
+            tmp_boundaries.add(st.end)
+        overlap_map[st.begin].add(st)
+        overlap_map[st.end].add(st)
 
-    # TODO: cleanup
+    # clean up bounds and overlapping statements
     boundaries = sorted(tmp_boundaries)
     to_add: set[Statement] = set()
     for var in boundaries:
         to_rem = set()
-        for iv in to_add:
-            if iv in overlap_map[var]:
-                overlap_map[var].remove(iv)
-                to_rem.add(iv)
+        for st in to_add:
+            if st in overlap_map[var]:
+                overlap_map[var].remove(st)
+                to_rem.add(st)
         to_add.difference_update(to_rem)
         overlap_map[var].update(to_add)
         to_add.update(overlap_map[var])

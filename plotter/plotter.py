@@ -27,19 +27,19 @@ def plot_statements(intervals: dict, influences: list[tuple[str, str]]):
         if influence not in intervals:
             continue
 
-        _plot_axis(axis, index, instance.statement, intervals, influence)
+        _plot_axis(axis, index, instance.hypothesis, intervals, influence)
 
 
 def _plot_axis(axis, index: int, statement: tuple, intervals: dict, influence: tuple[str, str]):
     if type(intervals[influence]) == set:
         statements: list[Statement] = sorted(intervals[influence])
     else:
-        statements: list[Statement] = intervals[influence].intervals()
+        statements: list[Statement] = intervals[influence].get_statements()
 
     if len(statements) == 0:
         return
 
-    # setup axis
+    # get min/max values
     min_x, max_x = min(iv.begin for iv in statements), max(iv.end for iv in statements)
     min_y, max_y = min(iv.begin_y for iv in statements), max(iv.end_y for iv in statements)
     if statement is not None and (statement[0], statement[4]) == influence:
@@ -47,6 +47,8 @@ def _plot_axis(axis, index: int, statement: tuple, intervals: dict, influence: t
         max_x = max(max_x, statement[1][1])
         min_y = min(min_y, statement[3][0])
         max_y = max(max_y, statement[3][1])
+
+    # build axis and add offset to prevent statements from overlapping it
     offset_x: float = abs(max_x - min_x) if abs(max_x - min_x) != 0 else 10
     offset_y: float = abs(max_y - min_y) if abs(max_y - min_y) != 0 else 10
     margin_x: float = offset_x / 30
@@ -58,7 +60,7 @@ def _plot_axis(axis, index: int, statement: tuple, intervals: dict, influence: t
     for interval in statements:
         plot_statement(axis[index], interval, offset_x)
 
-    # plot optional statement
+    # plot highlighted hypothesis
     if statement is not None and (statement[0], statement[4]) == influence:
         quality: str = statement[2]
         interval_x: tuple[float, float] = statement[1]
@@ -75,6 +77,7 @@ def plot_statement(ax, statement: Statement, offset_x: float, color="black"):
     width: float = statement.end - statement.begin
     height: float = statement.end_y - statement.begin_y
 
+    # create window
     rect = mpatches.Rectangle((left, bottom), width, height,
                               fill=False,
                               alpha=1,
@@ -89,9 +92,12 @@ def plot_statement(ax, statement: Statement, offset_x: float, color="black"):
     parent_dir: str = dir_name(dir_name(os.path.realpath(__file__)))
     path: str = os.path.join(parent_dir, "plotter", fetch_image_name(statement.quality, color))
     arr_lena = mpimg.imread(path)
+
+    # scale the image
     zoom: float = 0.2
     if width / offset_x < 0.1:
         zoom = 0.1
+
     image_box = OffsetImage(arr_lena, zoom=zoom)
     ab = AnnotationBbox(image_box, (position_x, position_y), frameon=False, pad=0)
     ax.add_artist(ab)

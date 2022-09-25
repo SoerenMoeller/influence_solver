@@ -88,13 +88,6 @@ class DependencyGraph:
                 self._dsf(node, stack.copy(), nodes)
         return nodes
 
-    def _floyd_warshall(self):
-        for k in self._dependency_graph.keys():
-            for i in self._dependency_graph.keys():
-                for j in self._dependency_graph.keys():
-                    if k in self._dependency_graph[i] and j in self._dependency_graph[k]:
-                        self._dependency_graph[i].add(j)
-
     def _remove_nodes(self, vars_on_path: set[str]):
         for node in vars_on_path:
             self.remove_node(node)

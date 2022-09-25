@@ -11,19 +11,14 @@ from .rules import transitivity
 
 
 class Solver:
-    _intervals: dict[tuple] = {}
-    _verbose: int = 1
-    _dependency_graph: DependencyGraph = DependencyGraph()
-    _tmp_intervals: dict[tuple, set] = {}
-    _statement: tuple[str, tuple[float, float], str, tuple[float, float], str]
-
     def __init__(self, intervals=None, v=None):
-        if v is not None:
-            self._verbose = v
-        if intervals is None:
-            return
+        self._statements: dict[tuple] = {}
+        self._verbose: int = v if v is not None else 0
+        self._dependency_graph: DependencyGraph = DependencyGraph()
+        self._tmp_intervals: dict[tuple, set] = {}
 
-        self.add(intervals)
+        if intervals:
+            self.add(intervals)
 
     def add(self, intervals):
         if type(intervals) == tuple and type(intervals[0]) != tuple:
@@ -46,53 +41,56 @@ class Solver:
 
         self._tmp_intervals[selector].remove(interval)
 
-    def _add_single_interval(self, interval: tuple):
-        influencing: str = interval[0]
-        influenced: str = interval[4]
+    def _add_single_interval(self, statement: tuple):
+        influencing: str = statement[0]
+        influenced: str = statement[4]
         self._dependency_graph.add(influencing, influenced)
 
-        quality: str = interval[2]
-        interval_x: tuple[float, float] = interval[1]
-        interval_y: tuple[float, float] = interval[3]
+        quality: str = statement[2]
+        interval_x: tuple[float, float] = statement[1]
+        interval_y: tuple[float, float] = statement[3]
 
         selector: tuple[str, str] = (influencing, influenced)
         if selector not in self._tmp_intervals:
             self._tmp_intervals[selector] = set()
 
-        interval: Statement = Statement(interval_x[0], interval_x[1], quality, interval_y[0], interval_y[1])
-        self._tmp_intervals[selector].add(interval)
+        internal_statement: Statement = Statement(interval_x[0], interval_x[1], quality, interval_y[0], interval_y[1])
+        self._tmp_intervals[selector].add(internal_statement)
 
-    def _add_multiple_intervals(self, intervals: list[tuple]):
-        for interval in intervals:
-            self._add_single_interval(interval)
+    def _add_multiple_intervals(self, statements: list[tuple]):
+        for statement in statements:
+            self._add_single_interval(statement)
 
-    def solve(self, statement: tuple) -> bool:
+    def solve(self, hypothesis: tuple, v=None) -> bool:
+        if v is not None:
+            self._verbose = v
+
+        # extract data
         adding_time_start: float = time.time()
+        influencing: str = hypothesis[0]
+        influenced: str = hypothesis[4]
+        y_lower, y_upper = hypothesis[3]
 
-        influencing: str = statement[0]
-        influenced: str = statement[4]
-        y_lower, y_upper = statement[3]
-
+        # check special case
         if influencing == influenced:
-            return check_reflexive_hypothesis(statement[1], statement[2], statement[3])
+            return check_reflexive_hypothesis(hypothesis[1], hypothesis[2], hypothesis[3])
 
+        # extract order and initialize models
         order = self._dependency_graph.setup(influencing, influenced)
-
         used_variables: list[str] = order + [influencing, influenced]
         if (influencing, influenced) not in self._tmp_intervals:
             self._tmp_intervals[(influencing, influenced)] = set()
         keys: set[tuple] = {key for key in self._tmp_intervals if key[0] in used_variables and key[1] in used_variables}
         for key in keys:
-            intervals: set[Statement] = {iv for iv in self._tmp_intervals[key] if
-                                         iv.turn_interval().overlaps(y_lower, y_upper)} \
+            statements: set[Statement] = {st for st in self._tmp_intervals[key] if st.overlaps_y(y_lower, y_upper)} \
                 if key[1] == influenced else self._tmp_intervals[key]
             if key[1] == influenced and key[0] != influencing:
-                self._intervals[key] = OverlapMap(intervals)
+                self._statements[key] = OverlapMap(statements)
                 continue
-            if key[1] == influenced and key[0] == influencing:
-                self._intervals[key] = StatementListDynamic(statement, intervals)
+            if key == (influencing, influenced):
+                self._statements[key] = StatementListDynamic(hypothesis, statements)
                 continue
-            self._intervals[key] = IntervalListStatic(intervals)
+            self._statements[key] = IntervalListStatic(statements)
         adding_time: float = time.time() - adding_time_start
 
         solve_time_start: float = time.time()
@@ -100,6 +98,7 @@ class Solver:
             plot_statements(self._tmp_intervals, list(self._tmp_intervals.keys()))
         start_amount: int = sum(len(self._tmp_intervals[ivs]) for ivs in self._tmp_intervals)
 
+        # try to solve
         instance = StatementListDynamic.get_instance()
         result, initial_solving_time = instance.solve()
         if result:
@@ -108,9 +107,10 @@ class Solver:
 
         # build transitives
         transitive_time_start: float = time.time()
-        self._build_transitive_cover(order, statement)
+        self._build_transitive_cover(order, hypothesis)
         transitive_time: float = time.time() - transitive_time_start
 
+        # try solving again
         result, final_solving_time = instance.solve()
         solve_time: float = time.time() - solve_time_start
 
@@ -146,11 +146,11 @@ class Solver:
             print(f"Started with {amount} amount of statements in the model")
             print(f"Finished with {len(self)} amount of statements in the model\n")
 
-            print(f"Statement: -{instance.statement}-", end=" ")
+            print(f"Statement: -{instance.hypothesis}-", end=" ")
             print("can be solved" if result else "is not solvable")
 
         if self._verbose >= 3:
-            plot_statements(self._intervals, list(self._intervals.keys()))
+            plot_statements(self._statements, list(self._statements.keys()))
             show_plot()
 
     def _build_transitive_cover(self, order: list[str], statement: tuple):
@@ -162,11 +162,11 @@ class Solver:
                 self._dependency_graph.remove_node(node)
 
     def _build_transitives(self, a: str, b: str, c: str):
-        model_ab: IntervalListStatic = self._intervals[(a, b)]
-        model_bc: OverlapMap = self._intervals[(b, c)]
+        model_ab: IntervalListStatic = self._statements[(a, b)]
+        model_bc: OverlapMap = self._statements[(b, c)]
         model_bc.initiate()
-        if (a, c) not in self._intervals:
-            self._intervals[(a, c)] = OverlapMap()
+        if (a, c) not in self._statements:
+            self._statements[(a, c)] = OverlapMap()
 
         model_ab.interval_height_and_transitives(self, model_bc, a, c)
 
@@ -175,19 +175,19 @@ class Solver:
         if overlapping is None:
             return
         rule: Statement = transitivity(iv, overlapping)
-        added: bool = self._intervals[(a, c)].add(rule)
+        added: bool = self._statements[(a, c)].add(rule)
         if added:
             self._dependency_graph.add(a, c, check=False)
         return rule
 
     def __len__(self):
         length: int = 0
-        for model in self._intervals:
-            length += len(self._intervals[model])
+        for model in self._statements:
+            length += len(self._statements[model])
         return length
 
     def __str__(self):
-        return str(self._intervals)
+        return str(self._statements)
 
 
 def check_reflexive_hypothesis(x_interval: tuple[float, float], quality: str, y_interval: tuple[float, float]) -> bool:
