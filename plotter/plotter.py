@@ -6,13 +6,21 @@ from matplotlib import image as mpimg
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
 from solver.util import fetch_image_name
-from statementstruct.statement import Statement
-from statementstruct.statement_list_dynamic import StatementListDynamic
+from statement_containers.statement import Statement
+from statement_containers.statement_list_dynamic import StatementListDynamic
 
 
 def plot_statements(intervals: dict, influences: list[tuple[str, str]]):
+    """
+    Plots model using matplotlib. This only builds the plots, they are shown using the show_plot method
+
+    Parameters:
+        intervals (dict): contains statements accesseble via its pair of variables
+        influences (list): list of variable pairs, whose statements should be plotted
+    """
+
     # setup amount of plots
-    figure, axis = plt.subplots(max(len(influences), 2))  # when using subplots, at least 2 are needed
+    _, axis = plt.subplots(max(len(influences), 2))  # when using subplots, at least 2 are needed
 
     # setup distance of the plots
     plt.subplots_adjust(left=0.1,
@@ -22,15 +30,25 @@ def plot_statements(intervals: dict, influences: list[tuple[str, str]]):
                         wspace=0.4,
                         hspace=1)
 
-    instance = StatementListDynamic.get_instance()
+    hypothesis = StatementListDynamic.get_instance().hypothesis
     for index, influence in enumerate(influences):
         if influence not in intervals:
             continue
 
-        _plot_axis(axis, index, instance.hypothesis, intervals, influence)
+        _plot_axis(axis, index, hypothesis, intervals, influence)
 
 
-def _plot_axis(axis, index: int, statement: tuple, intervals: dict, influence: tuple[str, str]):
+def _plot_axis(axis, index: int, hypothesis: tuple, intervals: dict, influence: tuple[str, str]):
+    """
+    Sets up the axis range as needed and plots the statements onto them
+
+    Parameters:
+        index (int): index of the axis
+        hypothesis (tuple): hypothesis that should be highlighted
+        intervals (dict): contains statements accesseble via its pair of variables
+        influences (list): list of variable pairs, whose statements should be plotted
+    """
+
     if type(intervals[influence]) == set:
         statements: list[Statement] = sorted(intervals[influence])
     else:
@@ -42,11 +60,11 @@ def _plot_axis(axis, index: int, statement: tuple, intervals: dict, influence: t
     # get min/max values
     min_x, max_x = min(iv.begin for iv in statements), max(iv.end for iv in statements)
     min_y, max_y = min(iv.begin_y for iv in statements), max(iv.end_y for iv in statements)
-    if statement is not None and (statement[0], statement[4]) == influence:
-        min_x = min(min_x, statement[1][0])
-        max_x = max(max_x, statement[1][1])
-        min_y = min(min_y, statement[3][0])
-        max_y = max(max_y, statement[3][1])
+    if hypothesis is not None and (hypothesis[0], hypothesis[4]) == influence:
+        min_x = min(min_x, hypothesis[1][0])
+        max_x = max(max_x, hypothesis[1][1])
+        min_y = min(min_y, hypothesis[3][0])
+        max_y = max(max_y, hypothesis[3][1])
 
     # build axis and add offset to prevent statements from overlapping it
     offset_x: float = abs(max_x - min_x) if abs(max_x - min_x) != 0 else 10
@@ -58,20 +76,28 @@ def _plot_axis(axis, index: int, statement: tuple, intervals: dict, influence: t
 
     # plot the statements
     for interval in statements:
-        plot_statement(axis[index], interval, offset_x)
+        plot_statement(axis[index], interval)
 
     # plot highlighted hypothesis
-    if statement is not None and (statement[0], statement[4]) == influence:
-        quality: str = statement[2]
-        interval_x: tuple[float, float] = statement[1]
-        interval_y: tuple[float, float] = statement[3]
+    if hypothesis is not None and (hypothesis[0], hypothesis[4]) == influence:
+        quality: str = hypothesis[2]
+        interval_x: tuple[float, float] = hypothesis[1]
+        interval_y: tuple[float, float] = hypothesis[3]
 
         statement_interval: Statement = Statement(interval_x[0], interval_x[1], quality,
                                                   interval_y[0], interval_y[1])
-        plot_statement(axis[index], statement_interval, offset_x, "red")
+        plot_statement(axis[index], statement_interval, "red")
 
 
 def plot_statement(ax, statement: Statement, offset_x: float, color="black"):
+    """
+    Plots a given statement by drawing its borders and inserting the quality in the center
+
+    Parameters:
+        ax: current axis
+        statement (Statement): statement to draw
+        color (str): color of the statement
+    """
     bottom: float = statement.begin_y
     left: float = statement.begin
     width: float = statement.end - statement.begin
@@ -95,7 +121,7 @@ def plot_statement(ax, statement: Statement, offset_x: float, color="black"):
 
     # scale the image
     zoom: float = 0.2
-    if width / offset_x < 0.1:
+    if width < 0.2:
         zoom = 0.1
 
     image_box = OffsetImage(arr_lena, zoom=zoom)
@@ -104,4 +130,8 @@ def plot_statement(ax, statement: Statement, offset_x: float, color="black"):
 
 
 def show_plot():
+    """
+    Show all previously created plots
+    """
+
     plt.show()

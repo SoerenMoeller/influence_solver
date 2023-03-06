@@ -1,6 +1,11 @@
 from .constants import *
 
 
+"""
+Utility functions to increase readabilty
+"""
+
+
 def fetch_image_name(quality: str, color: str):
     if quality == QUALITY_ANTI:
         return f"anti_{color}.png"

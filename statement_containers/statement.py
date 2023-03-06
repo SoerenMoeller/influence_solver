@@ -4,6 +4,22 @@ from solver.util import is_stronger_as
 
 
 class Statement(namedtuple('IntervalBase', ['begin', 'end', 'quality', 'begin_y', 'end_y'])):
+    """
+    Internal representation of statements
+
+    namedtuple
+    ----------
+    begin (float):
+        start value of range interval
+    end (float):
+        end value of range interval
+    quality (str):
+        quality of the statement
+    begin_y (float):
+        start value of domain interval
+    end_y (float):
+        end value of domain interval
+    """
     __slots__ = ()
 
     def __new__(cls, begin, end, quality, begin_y, end_y):

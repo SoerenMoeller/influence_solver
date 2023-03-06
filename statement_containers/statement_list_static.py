@@ -1,11 +1,25 @@
 import solver.rules as rules
-import statementstruct.util as util
+import statement_containers.util as util
 from solver.constants import CORRECT_UPPER, CORRECT_LOWER
-from statementstruct.statement import Statement
-from statementstruct.statement_list_dynamic import StatementListDynamic
+from statement_containers.statement import Statement
+from statement_containers.statement_list_dynamic import StatementListDynamic
 
 
 class IntervalListStatic:
+    """
+    Container for statements of variables pairs, that are not covered by static_list_dynamic nor
+    overlap_map
+
+    Attributes
+    ----------
+    _normalized : list[Statement]
+        container of statements after normalization process
+    _overlap_map : dict[float, set[Statement]]
+        maps boundaries to overlapping statements
+    _boundaries : list[float]
+        all boundaries in the model
+    """
+
     def __init__(self, ivs):
         self._normalized: list[Statement] = []
         self._overlap_map: dict[float, set[Statement]] = {}
@@ -24,9 +38,12 @@ class IntervalListStatic:
 
         self.strengthen_interval_height_sides()
 
-    def get_intervals(self, begin, end=None):
+    def get_statements_by_index(self, begin, end=None):
+        """
+        get statements of the normalized model using indices
+        """
         if end is None:
-            return self.get_intervals(begin[0], begin[1])
+            return self.get_statements_by_index(begin[0], begin[1])
 
         if begin < 0 or end > len(self._normalized):
             raise ValueError
@@ -36,10 +53,20 @@ class IntervalListStatic:
         util.strengthen_interval_height_sides(self._normalized)
 
     def interval_height_and_transitives(self, solver, model, a: str, c: str):
+        """
+        Lower the height of the statements in the area relevant for the hypothesis and 
+        try to only build the relevant one (in the same manner as in statement_list_dynamic)
+
+        Parameters:
+            solver (Solver): solver object
+            model: model containing statements to use transitivity rule with
+            a, c (str): transitive influence
+        """
+        
         instance: StatementListDynamic = StatementListDynamic.get_instance()
         lower, upper = instance.hypothesis[1]
         lower_y, upper_y = instance.hypothesis[3]
-        begin, end = util.overlapping(self._normalized, lower, upper)  # TODO: Fix?
+        begin, end = util.overlapping(self._normalized, lower, upper)  
         if begin == end == -1:
             return
 
@@ -51,7 +78,7 @@ class IntervalListStatic:
             end = len(self._normalized)
         for i in range(begin, end):
             st: Statement = self._normalized[i]
-            new_st: Statement = solver.create_transitive_from_interval(st, model, a, c)
+            new_st: Statement = solver.create_transitive_from_statement(st, model, a, c)
 
             # check if correction is needed
             if new_st is not None and new_st.contains_point(lower):
@@ -71,7 +98,7 @@ class IntervalListStatic:
                 if st.end < instance.x_min:
                     break
 
-                new_st: Statement = solver.create_transitive_from_interval(st, model, a, c)
+                new_st: Statement = solver.create_transitive_from_statement(st, model, a, c)
 
                 # check if bound is corrected
                 if new_st is not None:
@@ -89,7 +116,7 @@ class IntervalListStatic:
                 if st.begin > instance.x_max:
                     break
 
-                new_st: Statement = solver.create_transitive_from_interval(st, model, a, c)
+                new_st: Statement = solver.create_transitive_from_statement(st, model, a, c)
 
                 # check if bound is corrected
                 if new_st is not None:

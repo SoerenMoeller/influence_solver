@@ -1,12 +1,28 @@
 from functools import reduce
 from typing import Union
 
-from statementstruct.statement import Statement
-from .constants import *
-from .util import quality_add, min_quality, quality_times, is_stronger_as
+from statement_containers.statement import Statement
+from solver.constants import *
+from solver.util import quality_add, min_quality, quality_times, is_stronger_as
+
+
+"""
+Containing some basic rules of the rule set
+"""
 
 
 def interval_strength_right(statement_a: Statement, statement_b: Statement) -> Union[Statement, None]:
+    """
+    Implementation of the (R)-rules. Checks if statements overlap and creates new statement of possible
+
+    Parameters:
+        statement_a (Statement): left statement of the rule
+        statement_b (Statement): right statement of the rule
+
+    Returns:
+        (Statement/None): Newly created statement or none, of it could not be created
+    """
+
     if not (statement_b.begin <= statement_a.end <= statement_b.end):
         return None
 
@@ -30,6 +46,17 @@ def interval_strength_right(statement_a: Statement, statement_b: Statement) -> U
 
 
 def interval_strength_left(statement_a: Statement, statement_b: Statement) -> Union[Statement, None]:
+    """
+    Implementation of the (L)-rules. Checks if statements overlap and creates new statement of possible
+
+    Parameters:
+        statement_a (Statement): left statement of the rule
+        statement_b (Statement): right statement of the rule
+
+    Returns:
+        (Statement/None): Newly created statement or none, of it could not be created
+    """
+
     if not (statement_a.begin <= statement_b.begin <= statement_a.end):
         return None
 
@@ -52,6 +79,18 @@ def interval_strength_left(statement_a: Statement, statement_b: Statement) -> Un
 
 
 def interval_strength_multiple(begin: float, end: float, statements: set[Statement]) -> Statement:
+    """
+    Implementation of the (I+)-rule. Multiple usage on all statements, enveloping a given area.
+
+    Parameters:
+        begin (float): begin of the area 
+        end (float): end of the area
+        statements (set[Statement]): statements overlapping [begin, end]
+
+    Returns:
+        (Statement): Newly created statement 
+    """
+
     begin_y: float = max(st.begin_y for st in statements)
     end_y: float = min(st.end_y for st in statements)
     quality: str = reduce(min_quality, (st.quality for st in statements))
@@ -60,6 +99,16 @@ def interval_strength_multiple(begin: float, end: float, statements: set[Stateme
 
 
 def interval_join_multiple(statements: list[Statement]) -> Union[Statement, None]:
+    """
+    Implementation of the join rule. Joins all given statements from left to right, if they overlap
+
+    Parameters:
+        statements (list[Statement]): statements to join
+
+    Returns:
+        (Statement/None): Newly created statement or none, of it could not be created
+    """
+
     if not statements:
         return None
     for i in range(len(statements) - 1):
@@ -74,6 +123,16 @@ def interval_join_multiple(statements: list[Statement]) -> Union[Statement, None
 
 
 def transitivity(statement_a: Statement, statement_b: Statement) -> Union[Statement, None]:
+    """
+    Implementation of the (T)-rule
+    Parameters:
+        statement_a (Statement): left statement of the rule
+        statement_b (Statement): right statement of the rule
+
+    Returns:
+        (Statement/None): Newly created statement or none, of it could not be created
+    """
+    
     if not (statement_a.begin_y >= statement_b.begin and statement_a.end_y <= statement_b.end):
         return None
 
@@ -82,6 +141,14 @@ def transitivity(statement_a: Statement, statement_b: Statement) -> Union[Statem
 
 
 def rule_fact(hypothesis: tuple, statement: Statement) -> bool:
+    """
+    Implementation of the (F)-rule
+
+    Parameters:
+        hypothesis (tuple): current hypothesis to check
+        statement (Statement): statement that (potentially) can be used to verify the hypothesis
+    """
+
     if statement is None:
         return False
 

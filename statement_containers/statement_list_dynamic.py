@@ -2,13 +2,45 @@ import time
 from typing import Union
 
 import solver.rules as rules
-import statementstruct.util as util
+import statement_containers.util as util
 from solver.constants import QUALITY_MONO, SEARCH_LEFT, SEARCH_RIGHT, QUALITY_ANTI, QUALITY_CONS, CORRECT_LOWER, \
     CORRECT_UPPER
-from statementstruct.statement import Statement
+from statement_containers.statement import Statement
 
 
 class StatementListDynamic:
+    """
+    Container for statements related to variable pair (a, b), where 
+    b is the influenced variable of the hypothesis and a is the influencing 
+    variable of the hypothesis. This class is used for checking the hypothesis
+    before and after the transitive cover has been build. For that, the normalized 
+    model can be reset to further add statements. The search area can be shrinked to 
+    allow only adding the most important statements for solving
+
+    Attributes
+    ----------
+    instance : StatementListDynamic
+        (only) instance of this class
+    statements : set[Statement]
+        container of the added statements
+    hypothesis : tuple
+        hypothesis to check
+    _normalized : list[Statement]
+        container of statements after normalization process
+    _overlap_map : dict[float, set[Statement]]
+        maps boundaries to overlapping statements
+    _boundaries : list[float]
+        all boundaries in the model
+    x_min : float
+        minimum x value to consider for solving
+    x_max : float
+        maximum x value to consider for solving
+    _ov_min : int
+        index of lowest (in order) statement overlapping the hypothesis
+    _ov_max: int
+        index of highest (in order) statement overlapping the hypothesis
+    """
+
     instance = None
 
     @staticmethod
@@ -29,6 +61,10 @@ class StatementListDynamic:
         self._ov_max: int = -1
 
     def reset(self):
+        """
+        Reset the normilaization
+        """
+
         self._overlap_map = {}
         self._boundaries = []
         self._normalized = []
@@ -38,6 +74,15 @@ class StatementListDynamic:
             self.add(st)
 
     def solve(self) -> tuple[bool, float]:
+        """
+        Try solving the hypothesis in the given model, by extracting the statements overlapping it 
+        and trying to shrink their height as much as possible
+
+        Returns:
+            (bool): indicating if the hypothesis can be proven
+            (float): running time information 
+        """
+
         start_time: float = time.time()
         if not self.statements:
             return False, time.time() - start_time
@@ -47,9 +92,14 @@ class StatementListDynamic:
         self.statements = set()
 
         self.build_necessary_statements()
-        return self.check_widest(), time.time() - start_time
+        return self.check_slimest_envelopping(), time.time() - start_time
 
     def build_necessary_statements(self):
+        """
+        Check statements overlapping hypethesis and search as many statements needed to possibly decrease their height 
+        as low as needed (envoloped by hypothesis)
+        """
+
         lower, upper = self.hypothesis[1]
         lower_y, upper_y = self.hypothesis[3]
 
@@ -142,7 +192,15 @@ class StatementListDynamic:
 
         self.strengthen_interval_height_sides()
 
-    def check_widest(self) -> bool:
+    def check_slimest_envelopping(self) -> bool:
+        """
+        check if the slimest statement enveloppig the hypothesis can prove the hypothesis.
+        Join the overlapping ones together for that
+
+        Returns:
+            (bool): result of the fact rule
+        """
+
         if self._ov_max == -1 or self._ov_min == -1:
             return False
         overlapping: list[Statement] = self._normalized[self._ov_min:self._ov_max]
@@ -154,15 +212,29 @@ class StatementListDynamic:
         return result
 
     def add(self, statement: Statement) -> bool:
+        """
+        Add a statement to the model
+
+        Parameters:
+            statement (Statement): statement to add
+        
+        Returns:
+            (bool): indicating if adding was a success
+        """
+
         if statement is None or statement in self.statements:
             return False
 
         self.statements.add(statement)
         return True
 
-    def get_intervals(self, begin, end=None):
+    def get_statements_by_index(self, begin, end=None):
+        """
+        get statements of the normalized model using indices
+        """
+        
         if end is None:
-            return self.get_intervals(begin[0], begin[1])
+            return self.get_statements_by_index(begin[0], begin[1])
 
         if begin < 0 or end > len(self._normalized):
             raise ValueError

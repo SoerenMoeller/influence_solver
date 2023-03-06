@@ -2,10 +2,26 @@ import bisect
 
 import solver.rules as rules
 from solver.constants import QUALITY_CONS
-from statementstruct.statement import Statement
+from statement_containers.statement import Statement
+
+
+"""
+Methods shared by different statement containers
+"""
 
 
 def get_overlap_index(boundaries: list[float], begin, end=None) -> tuple[int, int]:
+    """
+    get indices of boundaries that are overlapped by a given area
+
+    Parameters:
+        boundaries (list[float]): sorted list of boundaries
+        begin, end (float): area to check
+
+    Returns:
+        Pair of indices
+    """
+
     if end is None:
         return get_overlap_index(boundaries, begin.begin, begin.end)
 
@@ -17,6 +33,17 @@ def get_overlap_index(boundaries: list[float], begin, end=None) -> tuple[int, in
 
 
 def init_boundaries(statements: set[Statement], overlap_map: dict[float, set[Statement]]) -> list[float]:
+    """
+    Collect all boundaries of a model, sort them, and save statements overlapping each bound
+
+    Parameters:
+        statements (set[Statement]): model to process
+        overlap_map (dict[float, set[Statement]]): mapping from bound to overlapping statements
+
+    Returns:
+        boundaries (list[float]): sorted list if boundaries
+    """
+
     # init bounds
     tmp_boundaries: set[float] = set()
     for st in statements:
@@ -45,19 +72,26 @@ def init_boundaries(statements: set[Statement], overlap_map: dict[float, set[Sta
     return boundaries
 
 
-def strengthen_interval_height_sides(ivs: list[Statement]):
+def strengthen_interval_height_sides(statements: list[Statement]):
+    """
+    minimize height of statement using the (R) and (L) rules
+
+    Parameters:
+        statements (list[Statement]): statements to minimalize height of
+    """
+
     i: int = 0
-    while i < len(ivs):
+    while i < len(statements):
         changed: bool = False
-        if i < len(ivs) - 1:
-            result = rules.interval_strength_left(ivs[i], ivs[i + 1])
+        if i < len(statements) - 1:
+            result = rules.interval_strength_left(statements[i], statements[i + 1])
             if result is not None:
-                ivs[i + 1] = result
+                statements[i + 1] = result
                 changed = True
         if i > 0:
-            result = rules.interval_strength_right(ivs[i - 1], ivs[i])
+            result = rules.interval_strength_right(statements[i - 1], statements[i])
             if result is not None:
-                ivs[i - 1] = result
+                statements[i - 1] = result
                 changed = True
         if changed:
             i -= 1
@@ -66,6 +100,17 @@ def strengthen_interval_height_sides(ivs: list[Statement]):
 
 
 def overlapping(statements: list[Statement], begin, end) -> tuple[int, int]:
+    """
+    check which statements in a given list overlap a given area
+
+    Parameters:
+        statements (list[Statement]): list of normalized statements
+        begin, end (float): [begin, end] is the overlapping area
+
+    Returns:
+        indices of start and end pos of overlapping statements, or (-1, -1) if none found
+    """
+
     index = bisect.bisect_left(statements, Statement(begin, begin, QUALITY_CONS, 0, 0))
 
     lower = index

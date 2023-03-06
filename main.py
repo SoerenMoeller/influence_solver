@@ -1,4 +1,3 @@
-from examples.current import current_model, current_model_statements
 from solver.solver import Solver
 from benchmark.benchmark import run_benchmark
 
