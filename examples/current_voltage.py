@@ -14,7 +14,7 @@ def get_current_voltage_example() -> tuple[list[tuple], list[tuple]]:
     """
 
     resistance = 300
-    phase_granularity = 0.01
+    phase_granularity = 0.1
     top_ac_voltage = 230
     voltage_granularity = 30
 

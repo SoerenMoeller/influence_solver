@@ -89,7 +89,7 @@ def _plot_axis(axis, index: int, hypothesis: tuple, intervals: dict, influence: 
         plot_statement(axis[index], statement_interval, "red")
 
 
-def plot_statement(ax, statement: Statement, offset_x: float, color="black"):
+def plot_statement(ax, statement: Statement, color="black"):
     """
     Plots a given statement by drawing its borders and inserting the quality in the center
 

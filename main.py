@@ -1,10 +1,16 @@
+from examples.current_voltage import get_current_voltage_example
 from solver.solver import Solver
 from benchmark.benchmark import run_benchmark
 
+
 def main():
-    #solver: Solver = Solver(current_model)
-    #solver.solve(current_model_statements[3], v=3)
-    run_benchmark()
+    statements, mult_hypothsis = get_current_voltage_example()
+    hypythesis = mult_hypothsis[1]
+    solver = Solver(statements, v=2)
+    solver.solve(hypythesis)
+
+    # run a predefined benchmark with increasing model size and time measurements
+    #run_benchmark()
     
 
 if __name__ == '__main__':
